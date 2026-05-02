@@ -161,6 +161,46 @@
         "command": "windsurfSwitch.checkPatchStatus",
         "title": "查看 Windsurf 补丁状态",
         "category": "Windsurf Switch"
+      },
+      {
+        "command": "windsurfSwitch._copyCred",
+        "title": "内部：复制凭据（供 webview 调用）",
+        "category": "Windsurf Switch"
+      },
+      {
+        "command": "windsurfSwitch._refreshCurrentSynced",
+        "title": "内部：刷新当前同步账号（供 webview 调用）",
+        "category": "Windsurf Switch"
+      },
+      {
+        "command": "windsurfSwitch._setPollingInterval",
+        "title": "内部：设置轮询间隔（供 webview 调用）",
+        "category": "Windsurf Switch"
+      },
+      {
+        "command": "windsurfSwitch._smartSwitchFromSidebar",
+        "title": "内部：从侧栏触发智能切号（供 webview 调用）",
+        "category": "Windsurf Switch"
+      },
+      {
+        "command": "windsurfSwitch._submitAddFromModal",
+        "title": "内部：提交新增账号表单（供 webview 调用）",
+        "category": "Windsurf Switch"
+      },
+      {
+        "command": "windsurfSwitch._submitBatchFromModal",
+        "title": "内部：提交批量导入表单（供 webview 调用）",
+        "category": "Windsurf Switch"
+      },
+      {
+        "command": "windsurfSwitch._toggleAuto",
+        "title": "内部：切换自动切号开关（供 webview 调用）",
+        "category": "Windsurf Switch"
+      },
+      {
+        "command": "windsurfSwitch._setLowQuotaThreshold",
+        "title": "内部：设置自动切号触发阈值（供 webview 调用）",
+        "category": "Windsurf Switch"
       }
     ],
     "menus": {
@@ -214,6 +254,10 @@
           "when": "false"
         },
         {
+          "command": "windsurfSwitch._setLowQuotaThreshold",
+          "when": "false"
+        },
+        {
           "command": "windsurfSwitch._refreshCurrentSynced",
           "when": "false"
         }
@@ -238,10 +282,15 @@
     }
   },
   "scripts": {
-    "package": "vsce package --no-dependencies"
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "npm run compile && vsce package --no-dependencies"
   },
   "devDependencies": {
-    "@vscode/vsce": "^3.0.0"
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.74.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.4.0"
   },
   "repository": {
     "type": "git",

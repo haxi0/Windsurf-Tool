@@ -1,0 +1,33 @@
+{
+  // F5 之前自动执行的编译任务。group.isDefault=true 让它成为默认 build task，
+  // 这样 launch.json 里的 "preLaunchTask": "${defaultBuildTask}" 能找到它。
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "tsc: 编译一次",
+      "type": "npm",
+      "script": "compile",
+      "problemMatcher": "$tsc",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "tsc: watch 模式",
+      "type": "npm",
+      "script": "watch",
+      "isBackground": true,
+      "problemMatcher": "$tsc-watch",
+      "group": "build",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated"
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+# 源码与编译中间产物 — 不进 vsix
+src/**
+out/**/*.map
+out/**/*.ts
+# 所有以 out. 开头的备份目录（out.handedited-backup / out.prev / ...）
+out.*/**
+
+# 配置 / 元数据
+tsconfig.json
+.gitignore
+.vscode/**
+.github/**
+.windsurf/**
+node_modules/**
+
+# 项目文档（README + LICENSE 仍由 vsce 自动收录）
+docs/**
+*.vsix

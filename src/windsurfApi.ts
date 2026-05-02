@@ -1,47 +1,5 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.firebaseLogin = firebaseLogin;
-exports.auth1Login = auth1Login;
-exports.auth1PostAuth = auth1PostAuth;
-exports.login = login;
-exports.firebaseRefresh = firebaseRefresh;
-exports.getPlanStatus = getPlanStatus;
-exports.registerUser = registerUser;
-const constants_1 = __importStar(require("./constants"));
-const log_1 = __importStar(require("./log"));
+import * as constants_1 from "./constants";
+import * as log_1 from "./log";
 // Default Windsurf endpoints (taken from the bundled `codeium.windsurf`
 // extension's `DEFAULT_REGISTER_API_SERVER_URL`).
 const REGISTER_API_SERVER_URL = 'https://register.windsurf.com';
@@ -56,7 +14,7 @@ const DEFAULT_HEADERS = {
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
 const POST_JSON_MAX_RETRIES = 3;
 const POST_JSON_RETRY_BASE_MS = 600;
-const POST_JSON_RETRY_MAX_MS = 4000;
+const POST_JSON_RETRY_MAX_MS = 4_000;
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -136,7 +94,7 @@ async function postJson(url, body, extraHeaders = {}) {
     }
     throw new Error(`Unexpected retry flow exit for ${url}`);
 }
-async function firebaseLogin(email, password) {
+export async function firebaseLogin(email, password) {
     const body = await postJson(constants_1.FIREBASE_LOGIN_URL, { email, password, returnSecureToken: true });
     return {
         idToken: body.idToken,
@@ -165,7 +123,7 @@ async function firebaseLogin(email, password) {
  * the same GetPlanStatus endpoint and by the RegisterUser endpoint (which
  * converts it to an sk-ws-01 API key) exactly like a Firebase idToken.
  */
-async function auth1Login(email, password) {
+export async function auth1Login(email, password) {
     const webHeaders = { Referer: constants_1.WINDSURF_EDITOR_SIGNIN_REFERER };
     const step1 = await postJson(constants_1.AUTH1_PASSWORD_LOGIN_URL, { email, password }, webHeaders);
     const auth1Token = typeof step1?.token === 'string' ? step1.token : '';
@@ -185,7 +143,7 @@ async function auth1Login(email, password) {
  * Used when we have a still-valid auth1Token on disk but no password — the
  * "auth1-only" account path.
  */
-async function auth1PostAuth(auth1Token) {
+export async function auth1PostAuth(auth1Token) {
     const webHeaders = { Referer: constants_1.WINDSURF_EDITOR_SIGNIN_REFERER };
     const step2 = await postJson(constants_1.WINDSURF_POST_AUTH_URL, { auth1Token, orgId: '' }, webHeaders);
     if (Array.isArray(step2?.orgs) &&
@@ -219,7 +177,7 @@ async function auth1PostAuth(auth1Token) {
  * import dead-end. We now always try Auth1 when Firebase fails — Auth1 lives
  * on `windsurf.com/_devin-auth/...` and is not App-Check-gated.
  */
-async function login(email, password) {
+export async function login(email, password) {
     try {
         return await firebaseLogin(email, password);
     }
@@ -233,7 +191,7 @@ async function login(email, password) {
         }
     }
 }
-async function firebaseRefresh(refreshToken) {
+export async function firebaseRefresh(refreshToken) {
     const body = await postJson(constants_1.FIREBASE_REFRESH_URL, {
         grant_type: 'refresh_token',
         refresh_token: refreshToken
@@ -249,7 +207,7 @@ async function firebaseRefresh(refreshToken) {
         expiresInSeconds: Number(body.expires_in) || 3600
     };
 }
-async function getPlanStatus(idToken) {
+export async function getPlanStatus(idToken) {
     const body = await postJson(constants_1.WINDSURF_PLAN_URL, { auth_token: idToken }, {
         'X-Auth-Token': idToken,
         'x-client-version': 'Chrome/JsCore/11.0.0/FirebaseCore-web'
@@ -354,7 +312,7 @@ function decodeMessage(buf) {
  *
  * Throws on transport / protocol error. Returns `{apiKey, name, apiServerUrl}`.
  */
-async function registerUser(firebaseIdToken) {
+export async function registerUser(firebaseIdToken) {
     if (!firebaseIdToken) {
         throw new Error('registerUser: empty firebaseIdToken');
     }
@@ -407,4 +365,3 @@ async function registerUser(firebaseIdToken) {
     }
     throw lastErr || new Error('registerUser unexpected retry exhaustion');
 }
-//# sourceMappingURL=windsurfApi.js.map

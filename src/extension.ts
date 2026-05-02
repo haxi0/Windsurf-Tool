@@ -1,56 +1,20 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.activate = activate;
-exports.deactivate = deactivate;
-const vscode = __importStar(require("vscode"));
-const accountsStore_1 = __importStar(require("./accountsStore"));
-const constants_1 = __importStar(require("./constants"));
-const log_1 = __importStar(require("./log"));
-const importParser_1 = __importStar(require("./importParser"));
-const memoryCreds_1 = __importStar(require("./memoryCreds"));
-const seamlessSwitch_1 = __importStar(require("./seamlessSwitch"));
-const sidebar_1 = __importStar(require("./sidebar"));
-const tokens_1 = __importStar(require("./tokens"));
-const windsurfApi_1 = __importStar(require("./windsurfApi"));
-const windsurfPatcher_1 = __importStar(require("./windsurfPatcher"));
-const crypto = __importStar(require("crypto"));
-const fs = __importStar(require("fs"));
-const path = __importStar(require("path"));
-const autoSwitch_1 = __importStar(require("./autoSwitch"));
-const smartSwitch_1 = __importStar(require("./smartSwitch"));
+import * as vscode from "vscode";
+import * as accountsStore_1 from "./accountsStore";
+import * as constants_1 from "./constants";
+import * as log_1 from "./log";
+import * as importParser_1 from "./importParser";
+import * as memoryCreds_1 from "./memoryCreds";
+import * as seamlessSwitch_1 from "./seamlessSwitch";
+import * as sidebar_1 from "./sidebar";
+import * as tokens_1 from "./tokens";
+import * as windsurfApi_1 from "./windsurfApi";
+import * as windsurfPatcher_1 from "./windsurfPatcher";
+import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
+import * as autoSwitch_1 from "./autoSwitch";
+import * as smartSwitch_1 from "./smartSwitch";
+import type { Account } from "./types";
 // ---------------------------------------------------------------------------
 // globalState keys for smart switch / Free throttle / current account.
 // ---------------------------------------------------------------------------
@@ -524,7 +488,7 @@ function extractEmailFromSharedAuthStatus(context, accounts, prevEmail) {
  * It's called on activation, on session-change events, and at the start
  * of user-initiated "refresh current" so the UI never drifts from reality.
  */
-async function syncCurrentAccountFromSession(context, accountsOverride) {
+async function syncCurrentAccountFromSession(context, accountsOverride?: Account[]) {
     // Design rule (post-fix): sync is *purely additive*. It will only upgrade
     // our local currentAccountId / activeEmail when it finds *positive
     // evidence* of a new account. It will NEVER clear our cache.
@@ -635,7 +599,7 @@ function clearSmartHistory(ctx) {
 }
 let autoSwitch;
 let sidebar;
-function activate(context) {
+export function activate(context) {
     (0, log_1.log)(`Windsurf Switch v${context.extension.packageJSON.version} activating on VS Code ${vscode.version}. Accounts file: ${(0, accountsStore_1.getAccountsFilePath)()}`);
     try {
         (0, accountsStore_1.ensureAccountsDir)();
@@ -747,7 +711,7 @@ function activate(context) {
                 scheduleSyncAndReload(context, sidebar, 'window focused');
             }
         }));
-        const heartbeat = setInterval(() => scheduleSyncAndReload(context, sidebar, 'heartbeat'), 30000);
+        const heartbeat = setInterval(() => scheduleSyncAndReload(context, sidebar, 'heartbeat'), 30_000);
         context.subscriptions.push({ dispose: () => clearInterval(heartbeat) });
     }
     catch (e) {
@@ -757,7 +721,7 @@ function activate(context) {
         throw e;
     }
 }
-function deactivate() {
+export function deactivate() {
     (0, log_1.disposeOutput)();
 }
 // ---------------------------------------------------------------------------
@@ -770,10 +734,11 @@ function registerCommands(context, sidebar) {
     }), vscode.commands.registerCommand('windsurfSwitch.showOutput', () => {
         (0, log_1.getOutputChannel)().show(true);
     }), vscode.commands.registerCommand('windsurfSwitch.switchAccount', () => pickAndSwitch(context, sidebar)), vscode.commands.registerCommand('windsurfSwitch.switchAccountById', (accountId) => switchById(context, sidebar, accountId)), vscode.commands.registerCommand('windsurfSwitch.switchByIdToken', () => cmdSwitchByIdToken()), vscode.commands.registerCommand('windsurfSwitch.addAccount', () => cmdAddAccount(sidebar)), vscode.commands.registerCommand('windsurfSwitch.batchImport', () => cmdBatchImport(sidebar)), vscode.commands.registerCommand('windsurfSwitch._submitAddFromModal', (args) => cmdSubmitAddFromModal(sidebar, args)), vscode.commands.registerCommand('windsurfSwitch._submitBatchFromModal', (args) => cmdSubmitBatchFromModal(sidebar, args)), vscode.commands.registerCommand('windsurfSwitch._copyCred', (args) => cmdCopyCred(sidebar, args)), vscode.commands.registerCommand('windsurfSwitch.deleteAccountById', (accountId) => deleteById(context, sidebar, accountId)), vscode.commands.registerCommand('windsurfSwitch.editRemarkById', (accountId) => editRemarkById(sidebar, accountId)), vscode.commands.registerCommand('windsurfSwitch.showCredentials', (accountId) => showCredentials(sidebar, accountId)), vscode.commands.registerCommand('windsurfSwitch.refreshAccount', (accountId) => refreshOne(context, sidebar, accountId)), vscode.commands.registerCommand('windsurfSwitch.refreshAll', () => refreshAll(context, sidebar)), vscode.commands.registerCommand('windsurfSwitch.fixCredentialsById', (accountId) => fixCredentialsById(sidebar, accountId)), vscode.commands.registerCommand('windsurfSwitch.listAccounts', () => cmdListAccounts()),
-    // --- Smart switch / auto switch ---
-    vscode.commands.registerCommand('windsurfSwitch.smartSwitch', () => cmdSmartSwitch(context, sidebar)), vscode.commands.registerCommand('windsurfSwitch._refreshCurrentSynced', () => cmdRefreshCurrentSynced(context, sidebar)), vscode.commands.registerCommand('windsurfSwitch.diagnoseSession', () => cmdDiagnoseSession(context)), vscode.commands.registerCommand('windsurfSwitch._smartSwitchFromSidebar', (args) => cmdSmartSwitchFromSidebar(context, sidebar, args)), vscode.commands.registerCommand('windsurfSwitch.resetSmartCooldown', () => cmdResetSmartCooldown(context, sidebar)), vscode.commands.registerCommand('windsurfSwitch.editLogPatterns', () => cmdEditLogPatterns(context)), vscode.commands.registerCommand('windsurfSwitch._toggleAuto', (args) => cmdToggleAuto(context, sidebar, args)), vscode.commands.registerCommand('windsurfSwitch._setPollingInterval', (args) => cmdSetPollingInterval(context, sidebar, args)), vscode.commands.registerCommand('windsurfSwitch._setLowQuotaThreshold', (args) => cmdSetLowQuotaThreshold(context, sidebar, args)),
-    // --- Windsurf core patch (no-browser smart switch) ---
-    vscode.commands.registerCommand('windsurfSwitch.patchWindsurf', () => cmdPatchWindsurf(context)), vscode.commands.registerCommand('windsurfSwitch.unpatchWindsurf', () => cmdUnpatchWindsurf(context)), vscode.commands.registerCommand('windsurfSwitch.checkPatchStatus', () => cmdCheckPatchStatus()));
+        // --- Smart switch / auto switch ---
+        vscode.commands.registerCommand('windsurfSwitch.smartSwitch', () => cmdSmartSwitch(context, sidebar)), vscode.commands.registerCommand('windsurfSwitch._refreshCurrentSynced', () => cmdRefreshCurrentSynced(context, sidebar)), vscode.commands.registerCommand('windsurfSwitch.diagnoseSession', () => cmdDiagnoseSession(context)), vscode.commands.registerCommand('windsurfSwitch._smartSwitchFromSidebar', (args) => cmdSmartSwitchFromSidebar(context, sidebar, args)), vscode.commands.registerCommand('windsurfSwitch.resetSmartCooldown', () => cmdResetSmartCooldown(context, sidebar)), vscode.commands.registerCommand('windsurfSwitch.editLogPatterns', () => cmdEditLogPatterns(context)), vscode.commands.registerCommand('windsurfSwitch._toggleAuto', (args) => cmdToggleAuto(context, sidebar, args)), vscode.commands.registerCommand('windsurfSwitch._setPollingInterval', (args) => cmdSetPollingInterval(context, sidebar, args)),
+        vscode.commands.registerCommand('windsurfSwitch._setLowQuotaThreshold', (args) => cmdSetLowQuotaThreshold(context, sidebar, args)),
+        // --- Windsurf core patch (no-browser smart switch) ---
+        vscode.commands.registerCommand('windsurfSwitch.patchWindsurf', () => cmdPatchWindsurf(context)), vscode.commands.registerCommand('windsurfSwitch.unpatchWindsurf', () => cmdUnpatchWindsurf(context)), vscode.commands.registerCommand('windsurfSwitch.checkPatchStatus', () => cmdCheckPatchStatus()));
 }
 // ---------------------------------------------------------------------------
 // Windsurf core patch — apply / restore / status
@@ -849,8 +814,7 @@ async function cmdPatchWindsurf(context) {
     }
     if ((0, windsurfPatcher_1.isPatchApplied)(extPath)) {
         // User explicitly requested patch → clear the "don't auto-apply" flag.
-        if (context)
-            await context.globalState.update(PATCHER_FLAGS.userDisabled, false);
+        if (context) await context.globalState.update(PATCHER_FLAGS.userDisabled, false);
         vscode.window.showInformationMessage('Windsurf 核心已经是 patch 过的版本，无需重复打补丁。');
         return;
     }
@@ -865,8 +829,7 @@ async function cmdPatchWindsurf(context) {
         return;
     }
     // Successful manual patch → re-enable autopilot for future activations.
-    if (context)
-        await context.globalState.update(PATCHER_FLAGS.userDisabled, false);
+    if (context) await context.globalState.update(PATCHER_FLAGS.userDisabled, false);
     if (r.alreadyApplied) {
         vscode.window.showInformationMessage('已是 patch 过的版本（重载窗口即生效）。');
         return;
@@ -888,8 +851,7 @@ async function cmdUnpatchWindsurf(context) {
     if (!(0, windsurfPatcher_1.isPatchApplied)(extPath)) {
         // Patch already absent; remember the user's preference so autopilot
         // doesn't silently re-apply on the next activation.
-        if (context)
-            await context.globalState.update(PATCHER_FLAGS.userDisabled, true);
+        if (context) await context.globalState.update(PATCHER_FLAGS.userDisabled, true);
         vscode.window.showInformationMessage('当前没有 patch（已是原始 Windsurf）。已禁用自动打补丁（再次打补丁将重新启用）。');
         return;
     }
@@ -903,8 +865,7 @@ async function cmdUnpatchWindsurf(context) {
         return;
     }
     // User has explicitly unpatched → stop autopilot from re-applying.
-    if (context)
-        await context.globalState.update(PATCHER_FLAGS.userDisabled, true);
+    if (context) await context.globalState.update(PATCHER_FLAGS.userDisabled, true);
     const reload = await vscode.window.showWarningMessage('Windsurf 已恢复，需要重载窗口才能生效。后续「智能切号」将回退到浏览器登录路径。', '重载窗口', '稍后');
     if (reload === '重载窗口') {
         await vscode.commands.executeCommand('workbench.action.reloadWindow');
@@ -963,15 +924,15 @@ async function pickAndSwitch(context, sidebar) {
         vscode.window.showWarningMessage('暂无可切换账号：需要密码 / refreshToken / auth1Token 至少一项。可用「修复凭据」补充密码。');
         return;
     }
-    const picks = usable
+    const picks: Array<vscode.QuickPickItem & { account: Account }> = usable
         .slice()
         .sort((a, b) => (b.lastQueryTime || '').localeCompare(a.lastQueryTime || ''))
         .map(a => ({
-        label: a.email,
-        description: a.remark ? `📝 ${a.remark}` : undefined,
-        detail: describeAccount(a),
-        account: a
-    }));
+            label: a.email,
+            description: a.remark ? `📝 ${a.remark}` : undefined,
+            detail: describeAccount(a),
+            account: a
+        }));
     const pick = await vscode.window.showQuickPick(picks, {
         title: '切换 Windsurf 账号 (Windsurf 窗口不会关闭)',
         placeHolder: '选择目标账号'
@@ -1584,7 +1545,7 @@ async function runSmartSwitch(context, sidebar, opts) {
             vscode.window.showWarningMessage(msg);
         }
         else {
-            vscode.window.setStatusBarMessage(`$(warning) ${msg}`, 30000);
+            vscode.window.setStatusBarMessage(`$(warning) ${msg}`, 30_000);
             (0, log_1.log)(msg);
         }
         return false;
@@ -1762,7 +1723,7 @@ async function cmdClaimCurrentSession(context, sidebar) {
         vscode.window.showWarningMessage('账号列表为空，请先导入账号。');
         return;
     }
-    const items = accounts
+    const items: Array<vscode.QuickPickItem & { id: string }> = accounts
         .slice()
         .sort((a, b) => a.email.localeCompare(b.email))
         .map(a => ({ label: a.email, description: a.remark || '', detail: a.planName || '', id: a.id }));
@@ -1878,7 +1839,7 @@ async function cmdSetPollingInterval(context, sidebar, args) {
     if (!autoSwitch)
         return;
     const ms = args?.intervalMs;
-    if (typeof ms !== 'number' || ms < 15000)
+    if (typeof ms !== 'number' || ms < 15_000)
         return;
     await autoSwitch.setPollingInterval(ms);
     await sidebar.reload();
@@ -1892,4 +1853,3 @@ async function cmdSetLowQuotaThreshold(context, sidebar, args) {
     await context.globalState.update(autoSwitch_1.STATE_KEYS.lowQuotaThreshold, v);
     await sidebar?.reload();
 }
-//# sourceMappingURL=extension.js.map

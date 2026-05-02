@@ -1,61 +1,42 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.onStatusChange = onStatusChange;
-exports.getStatus = getStatus;
-exports.attachSecretStorage = attachSecretStorage;
-exports.kickoffBackgroundDecrypt = kickoffBackgroundDecrypt;
-exports.getCreds = getCreds;
-exports.peekCreds = peekCreds;
-exports.removeCreds = removeCreds;
-exports.putCreds = putCreds;
-exports.fingerprintFromRecord = fingerprintFromRecord;
-exports.updateTokenFields = updateTokenFields;
-exports.invalidateAndReload = invalidateAndReload;
-const crypto = __importStar(require("crypto"));
-const accountsStore_1 = __importStar(require("./accountsStore"));
-const dpapi_1 = __importStar(require("./dpapi"));
-const log_1 = __importStar(require("./log"));
+import * as crypto from "crypto";
+import * as accountsStore_1 from "./accountsStore";
+import * as dpapi_1 from "./dpapi";
+import * as log_1 from "./log";
+import type * as vscode from "vscode";
+import type { PersistedAccountRecord } from "./types";
+
+export interface CachedCredentials {
+    email: string;
+    password: string;
+    idToken: string;
+    refreshToken: string;
+    auth1Token: string;
+    idTokenExpiresAt: number;
+}
+
+type MemoryCredsStatus =
+    | { state: 'idle' }
+    | { state: 'loading'; done: number; total: number }
+    | { state: 'ready'; total: number; durationMs: number; hitCount: number; missCount: number }
+    | { state: 'error'; message: string };
+
+type StatusListener = (status: MemoryCredsStatus) => void;
+type CredentialKind = 'password' | 'idToken' | 'refreshToken' | 'auth1Token';
+
+interface StoredCredsBlob {
+    v: 1;
+    fp: string;
+    creds: CachedCredentials;
+}
+
 const SECRET_KEY_PREFIX = 'windsurf:creds:v1:';
 const INDEX_KEY = 'windsurf:creds:v1:__index__'; // list of accountIds currently stored
-const cache = new Map();
-let readyPromise = null;
-let status = { state: 'idle' };
-const listeners = new Set();
-let secretStorage;
-function setStatus(next) {
+const cache = new Map<string, CachedCredentials>();
+let readyPromise: Promise<void> | null = null;
+let status: MemoryCredsStatus = { state: 'idle' };
+const listeners = new Set<StatusListener>();
+let secretStorage: vscode.SecretStorage | undefined;
+function setStatus(next: MemoryCredsStatus): void {
     status = next;
     for (const l of listeners) {
         try {
@@ -66,24 +47,24 @@ function setStatus(next) {
         }
     }
 }
-function onStatusChange(listener) {
+export function onStatusChange(listener: StatusListener): () => boolean {
     listeners.add(listener);
     return () => listeners.delete(listener);
 }
-function getStatus() {
+export function getStatus(): MemoryCredsStatus {
     return status;
 }
 /**
  * Must be called once during activation before the first kickoff. If it's
  * not called we silently fall back to memory-only mode (current session only).
  */
-function attachSecretStorage(secrets) {
+export function attachSecretStorage(secrets: vscode.SecretStorage): void {
     secretStorage = secrets;
 }
 /**
  * Kick off background decryption. Safe to call multiple times.
  */
-function kickoffBackgroundDecrypt() {
+export function kickoffBackgroundDecrypt(): Promise<void> {
     if (readyPromise) {
         return readyPromise;
     }
@@ -92,7 +73,7 @@ function kickoffBackgroundDecrypt() {
     });
     return readyPromise;
 }
-function fingerprint(r) {
+function fingerprint(r: PersistedAccountRecord): string {
     const h = crypto.createHash('sha256');
     h.update(r.passwordProtected || '');
     h.update('\x1f');
@@ -103,7 +84,7 @@ function fingerprint(r) {
     h.update(r.auth1TokenProtected || '');
     return h.digest('hex');
 }
-async function readPersistedIndex() {
+async function readPersistedIndex(): Promise<string[]> {
     if (!secretStorage) {
         return [];
     }
@@ -119,7 +100,7 @@ async function readPersistedIndex() {
         return [];
     }
 }
-async function writePersistedIndex(ids) {
+async function writePersistedIndex(ids: string[]): Promise<void> {
     if (!secretStorage) {
         return;
     }
@@ -130,7 +111,7 @@ async function writePersistedIndex(ids) {
         (0, log_1.log)('memoryCreds: failed to write index', e?.message || e);
     }
 }
-async function readStored(accountId) {
+async function readStored(accountId: string): Promise<StoredCredsBlob | undefined> {
     if (!secretStorage) {
         return undefined;
     }
@@ -149,7 +130,7 @@ async function readStored(accountId) {
         return undefined;
     }
 }
-async function writeStored(accountId, creds, fp) {
+async function writeStored(accountId: string, creds: CachedCredentials, fp: string): Promise<void> {
     if (!secretStorage) {
         return;
     }
@@ -161,7 +142,7 @@ async function writeStored(accountId, creds, fp) {
         (0, log_1.log)('memoryCreds: failed to persist creds', e?.message || e);
     }
 }
-async function deleteStored(accountId) {
+async function deleteStored(accountId: string): Promise<void> {
     if (!secretStorage) {
         return;
     }
@@ -172,7 +153,7 @@ async function deleteStored(accountId) {
         (0, log_1.log)('memoryCreds: failed to delete creds', e?.message || e);
     }
 }
-async function runDecrypt() {
+async function runDecrypt(): Promise<void> {
     const started = Date.now();
     let rawRecords;
     try {
@@ -220,7 +201,7 @@ async function runDecrypt() {
     }
     // Step 2: for misses, one batched DPAPI call for all 4 fields × missing accounts.
     if (missing.length > 0) {
-        const fields = [];
+        const fields: Array<{ accountId: string; cipher: string; kind: CredentialKind }> = [];
         for (const r of missing) {
             fields.push({ accountId: r.id, cipher: r.passwordProtected || '', kind: 'password' });
             fields.push({ accountId: r.id, cipher: r.idTokenProtected || '', kind: 'idToken' });
@@ -271,7 +252,7 @@ async function runDecrypt() {
         missCount: missing.length
     });
 }
-async function purgeStale(liveIds) {
+async function purgeStale(liveIds: string[]): Promise<void> {
     if (!secretStorage) {
         return;
     }
@@ -285,7 +266,7 @@ async function purgeStale(liveIds) {
     await writePersistedIndex(liveIds);
 }
 /** Wait for the background decrypt to finish, then return the cached creds. */
-async function getCreds(accountId) {
+export async function getCreds(accountId: string): Promise<CachedCredentials | undefined> {
     if (!readyPromise) {
         kickoffBackgroundDecrypt();
     }
@@ -293,11 +274,11 @@ async function getCreds(accountId) {
     return cache.get(accountId);
 }
 /** Synchronous read; returns undefined if not yet populated. */
-function peekCreds(accountId) {
+export function peekCreds(accountId: string): CachedCredentials | undefined {
     return cache.get(accountId);
 }
 /** Drop an entry (account deleted). Also removes from SecretStorage. */
-async function removeCreds(accountId) {
+export async function removeCreds(accountId: string): Promise<void> {
     cache.delete(accountId);
     await deleteStored(accountId);
     // Update index
@@ -314,7 +295,7 @@ async function removeCreds(accountId) {
  * compute one so the SecretStorage cache stays consistent with disk. Passing
  * `fp` explicitly is slightly faster when you already have the record handy.
  */
-async function putCreds(accountId, creds, fp) {
+export async function putCreds(accountId: string, creds: CachedCredentials, fp?: string): Promise<void> {
     cache.set(accountId, creds);
     const actualFp = fp || (await currentFingerprint(accountId)) || '';
     if (actualFp) {
@@ -329,7 +310,7 @@ async function putCreds(accountId, creds, fp) {
  * Convenience: rebuild fingerprint from a freshly-persisted record. Used by
  * add-account / refresh-tokens flows after accountsStore wrote new ciphertext.
  */
-function fingerprintFromRecord(r) {
+export function fingerprintFromRecord(r: PersistedAccountRecord): string {
     return fingerprint(r);
 }
 /**
@@ -337,7 +318,13 @@ function fingerprintFromRecord(r) {
  * rotated the tokens. The caller is responsible for writing the new cipher
  * to accounts.json first; we re-read that record to compute the fingerprint.
  */
-async function updateTokenFields(accountId, idToken, refreshToken, idTokenExpiresAt, record) {
+export async function updateTokenFields(
+    accountId: string,
+    idToken: string,
+    refreshToken: string,
+    idTokenExpiresAt: number,
+    record?: PersistedAccountRecord
+): Promise<void> {
     const cur = cache.get(accountId);
     if (!cur) {
         return;
@@ -350,7 +337,7 @@ async function updateTokenFields(accountId, idToken, refreshToken, idTokenExpire
         await writeStored(accountId, cur, fp);
     }
 }
-async function currentFingerprint(accountId) {
+async function currentFingerprint(accountId: string): Promise<string | undefined> {
     try {
         const records = await (0, accountsStore_1.loadAccountsEncrypted)();
         const r = records.find(x => x.id === accountId);
@@ -361,10 +348,9 @@ async function currentFingerprint(accountId) {
     }
 }
 /** After an external rewrite (e.g. desktop manager modified the file), reload. */
-async function invalidateAndReload() {
+export async function invalidateAndReload(): Promise<void> {
     readyPromise = null;
     cache.clear();
     setStatus({ state: 'idle' });
     return kickoffBackgroundDecrypt();
 }
-//# sourceMappingURL=memoryCreds.js.map

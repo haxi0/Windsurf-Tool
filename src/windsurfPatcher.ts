@@ -1,43 +1,3 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PATCH_COMMAND_ID = void 0;
-exports.findWindsurfExtensionPath = findWindsurfExtensionPath;
-exports.isPatchApplied = isPatchApplied;
-exports.applyPatch = applyPatch;
-exports.restorePatch = restorePatch;
 /**
  * Windsurf core patcher.
  *
@@ -65,16 +25,19 @@ exports.restorePatch = restorePatch;
  * hard-coded snippet with mangled symbols `s`, `e`, `n`, `B`, ...) keeps the
  * patch resilient to bundler variable renames between Windsurf releases.
  */
-const fs = __importStar(require("fs"));
-const path = __importStar(require("path"));
-const vm = __importStar(require("vm"));
-const vscode = __importStar(require("vscode"));
-const log_1 = __importStar(require("./log"));
+import * as fs from "fs";
+import * as path from "path";
+import * as vm from "vm";
+import * as vscode from "vscode";
+import * as log_1 from "./log";
+
 const PATCH_METHOD_MARKER = 'handleAuthTokenWithShit';
-exports.PATCH_COMMAND_ID = 'windsurf.provideAuthTokenToAuthProviderWithShit';
+export const PATCH_COMMAND_ID = 'windsurf.provideAuthTokenToAuthProviderWithShit';
+
 // ---------------------------------------------------------------------------
 // Locate Windsurf core's bundled extension.js
 // ---------------------------------------------------------------------------
+
 /**
  * Returns absolute path to Windsurf core's `dist/extension.js`, or null.
  *
@@ -84,18 +47,19 @@ exports.PATCH_COMMAND_ID = 'windsurf.provideAuthTokenToAuthProviderWithShit';
  *   2. `vscode.env.appRoot/extensions/windsurf/dist/extension.js` — the
  *      bundled-in-app fallback path used by VS Code-derived editors.
  */
-function findWindsurfExtensionPath() {
+export function findWindsurfExtensionPath() {
     try {
-        const ext = vscode.extensions.all.find(x => x.id === 'codeium.windsurf'
-            || (x.id.startsWith('codeium.windsurf-') && !x.id.includes('remote')));
+        const ext = vscode.extensions.all.find(x =>
+            x.id === 'codeium.windsurf'
+            || (x.id.startsWith('codeium.windsurf-') && !x.id.includes('remote'))
+        );
         if (ext) {
             const p = path.join(ext.extensionPath, 'dist', 'extension.js');
             if (fs.existsSync(p)) {
                 return p;
             }
         }
-    }
-    catch (e) {
+    } catch (e) {
         (0, log_1.log)(`[patcher] vscode.extensions lookup failed: ${e?.message || e}`);
     }
     try {
@@ -106,17 +70,18 @@ function findWindsurfExtensionPath() {
                 return p;
             }
         }
-    }
-    catch (e) {
+    } catch (e) {
         (0, log_1.log)(`[patcher] appRoot lookup failed: ${e?.message || e}`);
     }
     return null;
 }
+
 // ---------------------------------------------------------------------------
 // Detection
 // ---------------------------------------------------------------------------
+
 /** True iff Windsurf core's `extension.js` already contains both markers. */
-function isPatchApplied(extPath) {
+export function isPatchApplied(extPath) {
     const p = extPath || findWindsurfExtensionPath();
     if (!p || !fs.existsSync(p)) {
         return false;
@@ -124,16 +89,17 @@ function isPatchApplied(extPath) {
     try {
         // Use Buffer reads + indexOf to avoid loading 16MB strings just to test.
         const buf = fs.readFileSync(p);
-        return buf.includes(PATCH_METHOD_MARKER) && buf.includes(exports.PATCH_COMMAND_ID);
-    }
-    catch (e) {
+        return buf.includes(PATCH_METHOD_MARKER) && buf.includes(PATCH_COMMAND_ID);
+    } catch (e) {
         (0, log_1.log)(`[patcher] isPatchApplied read failed: ${e?.message || e}`);
         return false;
     }
 }
+
 // ---------------------------------------------------------------------------
 // JS validation
 // ---------------------------------------------------------------------------
+
 /**
  * Best-effort syntax check via `vm.Script`. Returns `{ok, error}`.
  *
@@ -146,14 +112,15 @@ function validateJavaScriptSyntax(content) {
         // eslint-disable-next-line no-new
         new vm.Script(content);
         return { ok: true };
-    }
-    catch (e) {
+    } catch (e) {
         return { ok: false, error: e?.message || String(e) };
     }
 }
+
 // ---------------------------------------------------------------------------
 // Clone-the-original patch generator
 // ---------------------------------------------------------------------------
+
 /**
  * Find the position of the matching closing brace for the open `{` at
  * `openIdx`. Naive brace counter that respects strings (single, double,
@@ -169,28 +136,13 @@ function findMatchingBrace(src, openIdx) {
     for (let i = openIdx; i < src.length; i++) {
         const c = src[i];
         if (stringChar) {
-            if (escape) {
-                escape = false;
-                continue;
-            }
-            if (c === '\\') {
-                escape = true;
-                continue;
-            }
-            if (c === stringChar) {
-                stringChar = null;
-                continue;
-            }
+            if (escape) { escape = false; continue; }
+            if (c === '\\') { escape = true; continue; }
+            if (c === stringChar) { stringChar = null; continue; }
             continue;
         }
-        if (c === '"' || c === "'" || c === '`') {
-            stringChar = c;
-            continue;
-        }
-        if (c === '{') {
-            depth++;
-            continue;
-        }
+        if (c === '"' || c === "'" || c === '`') { stringChar = c; continue; }
+        if (c === '{') { depth++; continue; }
         if (c === '}') {
             depth--;
             if (depth === 0) {
@@ -200,6 +152,7 @@ function findMatchingBrace(src, openIdx) {
     }
     return -1;
 }
+
 /**
  * Build the `handleAuthTokenWithShit` body by cloning the original
  * `handleAuthToken` body verbatim and applying surgical text replacements.
@@ -240,8 +193,7 @@ function buildClonedMethod(src, methodHeaderIdx) {
     const REG_CALL_RE = /await\s*\(\s*0\s*,\s*\w+\.registerUser\s*\)\s*\(\s*\w+\s*\)/;
     if (REG_CALL_RE.test(body)) {
         body = body.replace(REG_CALL_RE, argName);
-    }
-    else {
+    } else {
         (0, log_1.log)('[patcher] WARN: handleAuthToken body did not contain a recognizable registerUser call; patch may not behave as expected');
     }
     // Defensive: align field names with what callers will pass.
@@ -249,6 +201,7 @@ function buildClonedMethod(src, methodHeaderIdx) {
     body = body.replace(/\bapi_key\b/g, 'apiKey').replace(/\bapi_server_url\b/g, 'apiServerUrl');
     return `async handleAuthTokenWithShit(${argName})${body}`;
 }
+
 /**
  * Build the cloned `registerCommand` line for our new command id by copying
  * Windsurf's existing `registerCommand(t.PROVIDE_AUTH_TOKEN_TO_AUTH_PROVIDER,
@@ -278,32 +231,16 @@ function buildClonedCommand(src) {
     for (let i = parenOpen; i < src.length; i++) {
         const c = src[i];
         if (stringChar) {
-            if (escape) {
-                escape = false;
-                continue;
-            }
-            if (c === '\\') {
-                escape = true;
-                continue;
-            }
-            if (c === stringChar) {
-                stringChar = null;
-                continue;
-            }
+            if (escape) { escape = false; continue; }
+            if (c === '\\') { escape = true; continue; }
+            if (c === stringChar) { stringChar = null; continue; }
             continue;
         }
-        if (c === '"' || c === "'" || c === '`') {
-            stringChar = c;
-            continue;
-        }
-        if (c === '(')
-            depth++;
+        if (c === '"' || c === "'" || c === '`') { stringChar = c; continue; }
+        if (c === '(') depth++;
         else if (c === ')') {
             depth--;
-            if (depth === 0) {
-                parenClose = i;
-                break;
-            }
+            if (depth === 0) { parenClose = i; break; }
         }
     }
     if (parenClose < 0) {
@@ -314,22 +251,23 @@ function buildClonedCommand(src) {
     // subscriptions.push(...) chain.
     const stmt = src.slice(callStart, parenClose + 1);
     const newStmt = stmt
-        .replace(/(\w+)\.PROVIDE_AUTH_TOKEN_TO_AUTH_PROVIDER/, `"${exports.PATCH_COMMAND_ID}"`)
+        .replace(/(\w+)\.PROVIDE_AUTH_TOKEN_TO_AUTH_PROVIDER/, `"${PATCH_COMMAND_ID}"`)
         .replace(/\.handleAuthToken\b/g, '.handleAuthTokenWithShit');
     // Insert as `<original>, <newStmt>` — i.e. paste right after the
     // original close paren. The existing trailing comma in the file (if any)
     // continues to chain to the next subscription.
     return { cmdLine: ', ' + newStmt, insertAt: parenClose + 1 };
 }
+
 // ---------------------------------------------------------------------------
 // File IO helpers
 // ---------------------------------------------------------------------------
+
 function ensureWritable(filePath) {
     try {
         fs.accessSync(filePath, fs.constants.W_OK);
         return { ok: true };
-    }
-    catch (e) {
+    } catch (e) {
         // Try to chmod u+w
         try {
             const st = fs.statSync(filePath);
@@ -337,12 +275,12 @@ function ensureWritable(filePath) {
             fs.chmodSync(filePath, newMode);
             fs.accessSync(filePath, fs.constants.W_OK);
             return { ok: true };
-        }
-        catch (e2) {
+        } catch (e2) {
             return { ok: false, error: `${filePath} 不可写：${e2?.message || e2}` };
         }
     }
 }
+
 /**
  * Atomic write with verification + rollback. Steps:
  *   1. Write `content` to `<filePath>.tmp`
@@ -362,31 +300,25 @@ function writeWithRollback(filePath, content, previous, verify) {
         (0, log_1.log)('[patcher] verification failed after write, rolling back');
         fs.writeFileSync(filePath, previous, 'utf8');
         return { success: false, error: 'verification failed; rolled back' };
-    }
-    catch (e) {
+    } catch (e) {
         // Rollback best-effort.
-        try {
-            fs.writeFileSync(filePath, previous, 'utf8');
-        }
-        catch { /* ignore */ }
-        try {
-            if (fs.existsSync(tmp))
-                fs.unlinkSync(tmp);
-        }
-        catch { /* ignore */ }
+        try { fs.writeFileSync(filePath, previous, 'utf8'); } catch { /* ignore */ }
+        try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch { /* ignore */ }
         return { success: false, error: e?.message || String(e) };
     }
 }
+
 // ---------------------------------------------------------------------------
 // Public API: applyPatch / restorePatch
 // ---------------------------------------------------------------------------
+
 /**
  * Apply the patch to Windsurf's `extension.js`. Idempotent: returns
  * `{success:true, alreadyApplied:true}` if it's already patched.
  *
  * Returns `{success, needsRestart, alreadyApplied?, error?}`.
  */
-async function applyPatch() {
+export async function applyPatch() {
     const extPath = findWindsurfExtensionPath();
     if (!extPath) {
         return { success: false, error: '未找到 Windsurf 核心扩展（codeium.windsurf）的 dist/extension.js' };
@@ -401,8 +333,7 @@ async function applyPatch() {
     let original;
     try {
         original = fs.readFileSync(extPath, 'utf8');
-    }
-    catch (e) {
+    } catch (e) {
         return { success: false, error: `读取失败：${e?.message || e}` };
     }
     // Backup the original (only if no backup exists yet — never overwrite a
@@ -412,8 +343,7 @@ async function applyPatch() {
         try {
             fs.writeFileSync(backupPath, original, 'utf8');
             (0, log_1.log)(`[patcher] backup written → ${backupPath}`);
-        }
-        catch (e) {
+        } catch (e) {
             return { success: false, error: `写备份失败：${e?.message || e}` };
         }
     }
@@ -425,8 +355,7 @@ async function applyPatch() {
     let clonedMethod;
     try {
         clonedMethod = buildClonedMethod(original, headerIdx);
-    }
-    catch (e) {
+    } catch (e) {
         return { success: false, error: e?.message || String(e) };
     }
     const methodOpen = original.indexOf('{', headerIdx);
@@ -435,7 +364,8 @@ async function applyPatch() {
         return { success: false, error: '解析 handleAuthToken 函数体失败' };
     }
     // Insert cloned method right after original's closing brace.
-    const insertedAfterMethod = original.slice(0, methodClose + 1) +
+    const insertedAfterMethod =
+        original.slice(0, methodClose + 1) +
         clonedMethod +
         original.slice(methodClose + 1);
     // 2. Locate the registerCommand anchor in the post-method buffer and
@@ -443,11 +373,11 @@ async function applyPatch() {
     let cmd;
     try {
         cmd = buildClonedCommand(insertedAfterMethod);
-    }
-    catch (e) {
+    } catch (e) {
         return { success: false, error: e?.message || String(e) };
     }
-    const patched = insertedAfterMethod.slice(0, cmd.insertAt) +
+    const patched =
+        insertedAfterMethod.slice(0, cmd.insertAt) +
         cmd.cmdLine +
         insertedAfterMethod.slice(cmd.insertAt);
     // 3. Validate.
@@ -456,20 +386,23 @@ async function applyPatch() {
         return { success: false, error: `补丁后语法校验失败：${syn.error}` };
     }
     // 4. Write atomically + verify.
-    const verified = writeWithRollback(extPath, patched, original, content => content.includes(PATCH_METHOD_MARKER)
-        && content.includes(exports.PATCH_COMMAND_ID)
-        && validateJavaScriptSyntax(content).ok);
+    const verified = writeWithRollback(extPath, patched, original, content =>
+        content.includes(PATCH_METHOD_MARKER)
+        && content.includes(PATCH_COMMAND_ID)
+        && validateJavaScriptSyntax(content).ok
+    );
     if (!verified.success) {
         return { success: false, error: verified.error };
     }
     (0, log_1.log)(`[patcher] applied patch to ${extPath}`);
     return { success: true, needsRestart: true };
 }
+
 /**
  * Restore Windsurf's `extension.js` from `<extPath>.aliu-backup`. Returns
  * `{success, needsRestart, error?}`.
  */
-async function restorePatch() {
+export async function restorePatch() {
     const extPath = findWindsurfExtensionPath();
     if (!extPath) {
         return { success: false, error: '未找到 Windsurf 核心扩展的 dist/extension.js' };
@@ -487,19 +420,19 @@ async function restorePatch() {
     try {
         backup = fs.readFileSync(backupPath, 'utf8');
         current = fs.readFileSync(extPath, 'utf8');
-    }
-    catch (e) {
+    } catch (e) {
         return { success: false, error: `读取失败：${e?.message || e}` };
     }
     const syn = validateJavaScriptSyntax(backup);
     if (!syn.ok) {
         return { success: false, error: `备份文件语法异常：${syn.error}` };
     }
-    const verified = writeWithRollback(extPath, backup, current, content => content === backup && validateJavaScriptSyntax(content).ok);
+    const verified = writeWithRollback(extPath, backup, current, content =>
+        content === backup && validateJavaScriptSyntax(content).ok
+    );
     if (!verified.success) {
         return { success: false, error: verified.error };
     }
     (0, log_1.log)(`[patcher] restored ${extPath} from backup`);
     return { success: true, needsRestart: true };
 }
-//# sourceMappingURL=windsurfPatcher.js.map

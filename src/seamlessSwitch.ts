@@ -1,48 +1,21 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.isPatchedCommandAvailable = isPatchedCommandAvailable;
-exports.seamlessSwitch = seamlessSwitch;
-const crypto = __importStar(require("crypto"));
-const vscode = __importStar(require("vscode"));
-const constants_1 = __importStar(require("./constants"));
-const log_1 = __importStar(require("./log"));
-const windsurfApi_1 = __importStar(require("./windsurfApi"));
-const windsurfPatcher_1 = __importStar(require("./windsurfPatcher"));
+import * as crypto from "crypto";
+import * as vscode from "vscode";
+import * as constants_1 from "./constants";
+import * as log_1 from "./log";
+import * as windsurfApi_1 from "./windsurfApi";
+import * as windsurfPatcher_1 from "./windsurfPatcher";
 const DEVIN_TOKEN_PREFIX = 'devin-session-token$';
 const DEFAULT_API_SERVER_URL = 'https://server.codeium.com';
+
+interface SwitchHint {
+    email?: string;
+    displayName?: string;
+}
+
+interface PatchedCommandResult {
+    error?: unknown;
+    session?: vscode.AuthenticationSession;
+}
 /**
  * Cached availability of the patched command. We re-check on each call but
  * memoize positive results to avoid the (cheap) `getCommands` scan on every
@@ -50,7 +23,7 @@ const DEFAULT_API_SERVER_URL = 'https://server.codeium.com';
  * is picked up on the next switch without a window reload of THIS extension.
  */
 let patchedCommandAvailable = false;
-async function isPatchedCommandAvailable() {
+export async function isPatchedCommandAvailable(): Promise<boolean> {
     if (patchedCommandAvailable) {
         return true;
     }
@@ -82,7 +55,7 @@ async function isPatchedCommandAvailable() {
  * "已知折衷". To avoid the tab entirely, install the Windsurf core patch via
  * `windsurfSwitch.patchWindsurf` so the patched-command path below is taken.
  */
-async function browserSwitch(firebaseIdToken) {
+async function browserSwitch(firebaseIdToken: string): Promise<vscode.AuthenticationSession> {
     const state = crypto.randomBytes(8).toString('hex');
     const callbackUri = `${constants_1.WINDSURF_CALLBACK_URI_BASE}#access_token=${encodeURIComponent(firebaseIdToken)}&state=${state}`;
     (0, log_1.log)(`seamlessSwitch[browser]: scheduling callback URI in ${constants_1.URI_FIRE_DELAY_MS}ms`);
@@ -112,9 +85,9 @@ async function browserSwitch(firebaseIdToken) {
  * the token directly as the apiKey. For Firebase accounts we exchange the
  * idToken for a Windsurf apiKey via `RegisterUser`.
  */
-async function patchedSwitch(idToken, hint) {
-    let apiKey;
-    let name;
+async function patchedSwitch(idToken: string, hint?: SwitchHint): Promise<vscode.AuthenticationSession> {
+    let apiKey: string;
+    let name: string;
     let apiServerUrl = DEFAULT_API_SERVER_URL;
     if (typeof idToken === 'string' && idToken.startsWith(DEVIN_TOKEN_PREFIX)) {
         // Auth1 / Devin session token — accepted directly by Windsurf as apiKey.
@@ -139,7 +112,7 @@ async function patchedSwitch(idToken, hint) {
         name = hint?.email || 'windsurf-user';
     }
     (0, log_1.log)(`seamlessSwitch[patch]: invoking ${windsurfPatcher_1.PATCH_COMMAND_ID} (name=${name})`);
-    const result = await vscode.commands.executeCommand(windsurfPatcher_1.PATCH_COMMAND_ID, { apiKey, name, apiServerUrl });
+    const result = await vscode.commands.executeCommand<PatchedCommandResult | undefined>(windsurfPatcher_1.PATCH_COMMAND_ID, { apiKey, name, apiServerUrl });
     if (result && typeof result === 'object' && result.error) {
         throw new Error(`patched command error: ${JSON.stringify(result.error)}`);
     }
@@ -156,7 +129,7 @@ async function patchedSwitch(idToken, hint) {
  *                   build a stable session label and skip RegisterUser when
  *                   we already have a usable api key.
  */
-async function seamlessSwitch(idToken, hint) {
+export async function seamlessSwitch(idToken: string, hint?: SwitchHint): Promise<vscode.AuthenticationSession> {
     if (!idToken) {
         throw new Error('IdToken is empty');
     }
@@ -174,4 +147,3 @@ async function seamlessSwitch(idToken, hint) {
     }
     return await browserSwitch(idToken);
 }
-//# sourceMappingURL=seamlessSwitch.js.map

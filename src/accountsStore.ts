@@ -1,64 +1,15 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAccountsFilePath = exports.getAccountsDir = exports.path = void 0;
-exports.loadAccountsEncrypted = loadAccountsEncrypted;
-exports.loadManagerAccounts = loadManagerAccounts;
-exports.loadAccountWithSecrets = loadAccountWithSecrets;
-exports.hasAnyCredential = hasAnyCredential;
-exports.loadSwitchabilityMap = loadSwitchabilityMap;
-exports.buildPersisted = buildPersisted;
-exports.addAccount = addAccount;
-exports.deleteAccount = deleteAccount;
-exports.updateRemark = updateRemark;
-exports.applySnapshot = applySnapshot;
-exports.applyManySnapshots = applyManySnapshots;
-exports.markQuotaError = markQuotaError;
-exports.applyAuth1Tokens = applyAuth1Tokens;
-exports.applyLoginTokens = applyLoginTokens;
-exports.ensureAccountsDir = ensureAccountsDir;
-exports.accountsFileExists = accountsFileExists;
-const fs = __importStar(require("fs"));
-const path = __importStar(require("path"));
-exports.path = path;
-const constants_1 = __importStar(require("./constants"));
-const dpapi_1 = __importStar(require("./dpapi"));
-const log_1 = __importStar(require("./log"));
-var constants_2 = require("./constants");
-Object.defineProperty(exports, "getAccountsDir", { enumerable: true, get: function () { return constants_2.getAccountsDir; } });
-Object.defineProperty(exports, "getAccountsFilePath", { enumerable: true, get: function () { return constants_2.getAccountsFilePath; } });
+import * as fs from "fs";
+import * as path from "path";
+import * as constants_1 from "./constants";
+import * as dpapi_1 from "./dpapi";
+import * as log_1 from "./log";
+import type {
+    Account,
+    PersistedAccountRecord,
+} from "./types";
+
+export { path };
+export { getAccountsDir, getAccountsFilePath } from "./constants";
 /**
  * Shared-with-manager accounts storage.
  *
@@ -69,7 +20,7 @@ Object.defineProperty(exports, "getAccountsFilePath", { enumerable: true, get: f
  * retain an in-memory mirror — "last write wins" is acceptable for low-rate
  * account edits.
  */
-async function loadAccountsEncrypted() {
+export async function loadAccountsEncrypted(): Promise<PersistedAccountRecord[]> {
     const file = (0, constants_1.getAccountsFilePath)();
     if (!fs.existsSync(file)) {
         return [];
@@ -87,12 +38,12 @@ async function loadAccountsEncrypted() {
  * for the specific account to lazily DPAPI-decrypt its tokens in a single
  * PowerShell invocation.
  */
-async function loadManagerAccounts() {
+export async function loadManagerAccounts(): Promise<Account[]> {
     const records = await loadAccountsEncrypted();
     return records.map(recordToMetaOnly);
 }
 /** Decrypt a single account's sensitive fields on demand. */
-async function loadAccountWithSecrets(accountId) {
+export async function loadAccountWithSecrets(accountId: string): Promise<Account | undefined> {
     const records = await loadAccountsEncrypted();
     const rec = records.find(r => r.id === accountId);
     if (!rec) {
@@ -149,14 +100,14 @@ function recordToMetaOnly(r) {
     };
 }
 /** Cheap check: does the record have any credential we could use to get an IdToken? */
-function hasAnyCredential(r) {
+export function hasAnyCredential(r: PersistedAccountRecord): boolean {
     return Boolean(r.passwordProtected ||
         r.idTokenProtected ||
         r.refreshTokenProtected ||
         r.auth1TokenProtected);
 }
 /** Which accounts (by id) have at least one usable credential on disk. */
-async function loadSwitchabilityMap() {
+export async function loadSwitchabilityMap() {
     const records = await loadAccountsEncrypted();
     const map = new Map();
     for (const r of records) {
@@ -179,7 +130,7 @@ function runSerializedMutation(work) {
     mutationQueue = run.then(() => undefined, () => undefined);
     return run;
 }
-async function buildPersisted(account) {
+export async function buildPersisted(account: Account): Promise<PersistedAccountRecord> {
     const [passwordProtected, idTokenProtected, refreshTokenProtected, auth1TokenProtected] = await (0, dpapi_1.dpapiProtectBatch)([
         account.password,
         account.idToken,
@@ -238,7 +189,7 @@ async function writeAtomic(records) {
  * encrypted on disk are preserved untouched unless the mutator supplies a
  * fully-built PersistedAccountRecord via `replace` semantics.
  */
-async function addAccount(newAccount) {
+export async function addAccount(newAccount: Account): Promise<void> {
     return runSerializedMutation(async () => {
         const records = await loadAccountsEncrypted();
         if (records.some(r => (r.email || '').toLowerCase() === newAccount.email.toLowerCase())) {
@@ -250,7 +201,7 @@ async function addAccount(newAccount) {
         (0, log_1.log)(`addAccount: ${newAccount.email}`);
     });
 }
-async function deleteAccount(accountId) {
+export async function deleteAccount(accountId: string): Promise<void> {
     return runSerializedMutation(async () => {
         const records = await loadAccountsEncrypted();
         const filtered = records.filter(r => r.id !== accountId);
@@ -261,7 +212,7 @@ async function deleteAccount(accountId) {
         (0, log_1.log)(`deleteAccount: ${accountId}`);
     });
 }
-async function updateRemark(accountId, remark) {
+export async function updateRemark(accountId: string, remark: string): Promise<void> {
     return runSerializedMutation(async () => {
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
@@ -273,7 +224,7 @@ async function updateRemark(accountId, remark) {
         (0, log_1.log)(`updateRemark: ${accountId} -> ${remark}`);
     });
 }
-async function applySnapshot(accountId, snapshot) {
+export async function applySnapshot(accountId: string, snapshot: Partial<Account>): Promise<void> {
     return runSerializedMutation(async () => {
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
@@ -298,7 +249,7 @@ async function applySnapshot(accountId, snapshot) {
  * one atomic write. Avoids N sequential read-modify-write passes that used
  * to dominate wall time with ~100 accounts.
  */
-async function applyManySnapshots(entries) {
+export async function applyManySnapshots(entries) {
     if (entries.length === 0) {
         return;
     }
@@ -334,7 +285,7 @@ async function applyManySnapshots(entries) {
         }
     });
 }
-async function markQuotaError(accountId) {
+export async function markQuotaError(accountId: string): Promise<void> {
     return runSerializedMutation(async () => {
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
@@ -351,7 +302,7 @@ async function markQuotaError(accountId) {
  * Preserves all other fields. Used by "auth1-only" accounts when we mint a fresh
  * sessionToken from a still-valid auth1Token (step B only).
  */
-async function applyAuth1Tokens(accountId, sessionToken, auth1Token, expiresAt, nextAccountId, nextPrimaryOrgId) {
+export async function applyAuth1Tokens(accountId, sessionToken, auth1Token, expiresAt, nextAccountId, nextPrimaryOrgId) {
     return runSerializedMutation(async () => {
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
@@ -380,7 +331,7 @@ async function applyAuth1Tokens(accountId, sessionToken, auth1Token, expiresAt, 
     });
 }
 /** Update token fields after a Firebase refresh/login. Preserves other fields. */
-async function applyLoginTokens(accountId, idToken, refreshToken, expiresAt, displayName, password, authProvider, auth1Token, nextAccountId, nextPrimaryOrgId) {
+export async function applyLoginTokens(accountId, idToken, refreshToken, expiresAt, displayName, password, authProvider, auth1Token, nextAccountId, nextPrimaryOrgId) {
     return runSerializedMutation(async () => {
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
@@ -420,7 +371,7 @@ async function applyLoginTokens(accountId, idToken, refreshToken, expiresAt, dis
         await writeAtomic(records);
     });
 }
-function ensureAccountsDir() {
+export function ensureAccountsDir(): void {
     try {
         fs.mkdirSync((0, constants_1.getAccountsDir)(), { recursive: true });
     }
@@ -428,7 +379,6 @@ function ensureAccountsDir() {
         // ignore
     }
 }
-function accountsFileExists() {
+export function accountsFileExists(): boolean {
     return fs.existsSync((0, constants_1.getAccountsFilePath)());
 }
-//# sourceMappingURL=accountsStore.js.map

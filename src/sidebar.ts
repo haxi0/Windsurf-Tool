@@ -1,46 +1,10 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SidebarProvider = void 0;
-const crypto = __importStar(require("crypto"));
-const vscode = __importStar(require("vscode"));
-const accountsStore_1 = __importStar(require("./accountsStore"));
-const importParser_1 = __importStar(require("./importParser"));
-const log_1 = __importStar(require("./log"));
-const autoSwitch_1 = __importStar(require("./autoSwitch"));
-const smartSwitch_1 = __importStar(require("./smartSwitch"));
+import * as crypto from "crypto";
+import * as vscode from "vscode";
+import * as accountsStore_1 from "./accountsStore";
+import * as importParser_1 from "./importParser";
+import * as log_1 from "./log";
+import * as autoSwitch_1 from "./autoSwitch";
+import * as smartSwitch_1 from "./smartSwitch";
 const UI_KEYS = {
     sortCollapsed: 'wm.ui.sortCollapsed',
     filterCollapsed: 'wm.ui.filterCollapsed'
@@ -57,24 +21,26 @@ const UI_KEYS = {
  *   - Account data only includes metadata (no tokens/passwords). Secrets
  *     are decrypted on-demand inside the relevant commands.
  */
-class SidebarProvider {
+export class SidebarProvider {
+    ctx;
+    static viewId = 'windsurfSwitch.sidebar';
+    _view;
+    _accounts = [];
+    _loading = false;
+    _error;
+    /**
+     * Last "filtered + sorted" account id list reported by the webview.
+     * Kept in sync via the `candidateIds` message and used by smart switch
+     * to only consider accounts the user is currently looking at.
+     */
+    _lastCandidateIds = null;
+    /**
+     * JSON of the last state payload we posted to the webview. Used to
+     * suppress duplicate posts so cross-window heartbeat / focus / fs-watcher
+     * resyncs don't re-render the UI when nothing actually changed.
+     */
+    _lastPostedJson = null;
     constructor(ctx) {
-        this._accounts = [];
-        this._loading = false;
-        /**
-         * Last "filtered + sorted" account id list reported by the webview.
-         * Kept in sync via the `candidateIds` message and used by smart switch
-         * to only consider accounts the user is currently looking at.
-         */
-        this._lastCandidateIds = null;
-        /**
-         * JSON of the last state payload we posted to the webview. Used to
-         * suppress duplicate posts so cross-window heartbeat / focus / fs-watcher
-         * resyncs don't re-render the UI when nothing actually changed.
-         */
-        this._lastPostedJson = null;
-        // 并发/重复调用只触发一次真正的 disk read，降低批量操作里的抖动。
-        this._reloadInFlight = null;
         this.ctx = ctx;
     }
     get accounts() {
@@ -115,6 +81,8 @@ class SidebarProvider {
             </body></html>`;
         }
     }
+    // 并发/重复调用只触发一次真正的 disk read，降低批量操作里的抖动。
+    _reloadInFlight = null;
     reload() {
         if (this._reloadInFlight) {
             return this._reloadInFlight;
@@ -548,8 +516,6 @@ email=dave@x.com&amp;password=88Dave88
 </html>`;
     }
 }
-exports.SidebarProvider = SidebarProvider;
-SidebarProvider.viewId = 'windsurfSwitch.sidebar';
 function escapeHtml(s) {
     return String(s)
         .replace(/&/g, '&amp;')
@@ -2534,4 +2500,3 @@ const JS = /* javascript */ `
     render();
 })();
 `;
-//# sourceMappingURL=sidebar.js.map

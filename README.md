@@ -6,10 +6,9 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-success)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-> 截图占位（请替换为实际 sidebar 截图）：
-> ```
-> docs/screenshot-sidebar.png
-> ```
+<p align="center">
+  <img src="docs/screenshot-sidebar.jpg" alt="Windsurf Switch sidebar" width="420">
+</p>
 
 ---
 
@@ -36,13 +35,13 @@
 3. `Reload Window`（VSCode 提示后点一下）
 4. 左侧 Activity Bar 会出现 **Windsurf Switch** 图标 → 点开侧栏即可
 
-### 方式 2 — 从源码打包
+### 方式 2 — 从源码构建
 
 ```bash
 git clone https://github.com/illfen/windsurf-switch.git
 cd windsurf-switch
-npx --yes @vscode/vsce package --no-dependencies
-# → 输出 windsurf-switch-X.X.X.vsix
+npm install              # 装 typescript / @types/vscode / vsce
+npm run package          # 编译 src/ → out/，再打 windsurf-switch-X.X.X.vsix
 ```
 
 > 首次启动扩展会**自动给 Windsurf 核心打补丁**（实现无浏览器切号），无需手动操作。
@@ -200,23 +199,32 @@ A: 余量 > 60% 绿、20%~60% 黄、≤ 20% 红。
 
 ```
 windsurf-switch/
-├── out/                      # 运行时 JS（webview UI / 命令处理 / 解析器都在这里）
-│   ├── extension.js          # 命令注册 / 跨窗口同步 / 主流程
-│   ├── sidebar.js            # webview UI（CSS + HTML + 前端 JS 全在此）
-│   ├── windsurfApi.js        # Firebase / Auth1 登录 + Quota API
-│   ├── windsurfPatcher.js    # 给 Windsurf 核心打补丁
-│   ├── importParser.js       # 批量导入文本解析
-│   ├── accountsStore.js      # 加密账号库读写
+├── src/                      # TypeScript 源码
+│   ├── extension.ts          # 命令注册 / 跨窗口同步 / 主流程
+│   ├── sidebar.ts            # webview UI（CSS + HTML + 前端 JS 全在此）
+│   ├── windsurfApi.ts        # Firebase / Auth1 登录 + Quota API
+│   ├── windsurfPatcher.ts    # 给 Windsurf 核心打补丁
+│   ├── importParser.ts       # 批量导入文本解析
+│   ├── accountsStore.ts      # 加密账号库读写
 │   └── ...
+├── out/                      # 编译产物（npm run compile 输出，vsce package 时打入 vsix）
 ├── resources/
 │   └── icon.svg              # Activity Bar 图标
+├── tsconfig.json             # 宽松模式（noImplicitAny: false）便于增量类型化
+├── .vscodeignore             # vsix 打包时排除 src / map / 备份
 ├── package.json              # 扩展 manifest
 ├── LICENSE
 └── README.md
 ```
 
-> 当前仓库直接维护 `out/` 下的 JavaScript（webview / 解析器 / 命令处理可以零依赖直接改）。
-> 如有需要会在后续版本恢复 TypeScript 源码与构建链。
+构建：
+
+```bash
+npm install
+npm run compile     # 编译一次
+npm run watch       # 持续编译
+npm run package     # 编译 + 打 vsix
+```
 
 ---
 

@@ -1,49 +1,13 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AutoSwitch = exports.DEFAULT_LOG_PATTERNS = exports.LOG_WATCH_DEBOUNCE_MS = exports.LOG_SAME_ACCOUNT_DEBOUNCE_MS = exports.AUTO_SWITCH_THROTTLE_MS = exports.DEFAULT_LOW_QUOTA_THRESHOLD = exports.DEFAULT_POLLING_INTERVAL_MS = exports.STATE_KEYS = void 0;
-const fs = __importStar(require("fs"));
-const os = __importStar(require("os"));
-const path = __importStar(require("path"));
-const vscode = __importStar(require("vscode"));
-const log_1 = __importStar(require("./log"));
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import * as vscode from "vscode";
+import * as log_1 from "./log";
 /**
  * Keys in globalState.
  * Keep in sync with extension.ts.
  */
-exports.STATE_KEYS = {
+export const STATE_KEYS = {
     pollingEnabled: 'wm.auto.polling.enabled',
     pollingIntervalMs: 'wm.auto.polling.intervalMs',
     logWatchEnabled: 'wm.auto.logWatch.enabled',
@@ -52,14 +16,14 @@ exports.STATE_KEYS = {
     // 关闭时：polling 仍然每 N 分钟刷新额度数据，但不自动切号 —— 只查不切。
     lowQuotaThresholdEnabled: 'wm.auto.lowQuotaThreshold.enabled'
 };
-exports.DEFAULT_POLLING_INTERVAL_MS = 2 * 60 * 1000;
+export const DEFAULT_POLLING_INTERVAL_MS = 2 * 60 * 1000;
 // 余量低于此百分比就触发自动切号（用户可在 sidebar 里调整，5 / 10 / 15 / 20 / 30）
-exports.DEFAULT_LOW_QUOTA_THRESHOLD = 10;
-exports.AUTO_SWITCH_THROTTLE_MS = 10 * 1000; // 10s throttle: auto triggers skip;
+export const DEFAULT_LOW_QUOTA_THRESHOLD = 10;
+export const AUTO_SWITCH_THROTTLE_MS = 10 * 1000; // 10s throttle: auto triggers skip;
 // manual switch bypasses this window.
-exports.LOG_SAME_ACCOUNT_DEBOUNCE_MS = 30 * 1000; // same-account duplicate match debounce
-exports.LOG_WATCH_DEBOUNCE_MS = 200; // fs.watch event coalesce
-exports.DEFAULT_LOG_PATTERNS = [
+export const LOG_SAME_ACCOUNT_DEBOUNCE_MS = 30 * 1000; // same-account duplicate match debounce
+export const LOG_WATCH_DEBOUNCE_MS = 200; // fs.watch event coalesce
+export const DEFAULT_LOG_PATTERNS = [
     '"code"\\s*:\\s*"(quota_exhausted|usage_limit_reached|rate_limit_exceeded)"',
     '"status"\\s*:\\s*(402|429)\\b',
     '\\buser_quota_exhausted\\b',
@@ -109,19 +73,21 @@ function findLatestSessionDir(root) {
 // ---------------------------------------------------------------------------
 // AutoSwitch controller
 // ---------------------------------------------------------------------------
-class AutoSwitch {
+export class AutoSwitch {
+    ctx;
+    deps;
+    _pollingTimer = null;
+    _pollingFailStreak = 0;
+    _logRootWatcher = null;
+    _logSessionWatcher = null;
+    _logSessionDir = null;
+    _logFileOffsets = new Map();
+    _logMatchPatterns = [];
+    _logScanTimer = null;
+    _lastLogMatchByAccount = new Map();
+    _lastAutoSwitchMs = 0;
+    _disposed = false;
     constructor(ctx, deps) {
-        this._pollingTimer = null;
-        this._pollingFailStreak = 0;
-        this._logRootWatcher = null;
-        this._logSessionWatcher = null;
-        this._logSessionDir = null;
-        this._logFileOffsets = new Map();
-        this._logMatchPatterns = [];
-        this._logScanTimer = null;
-        this._lastLogMatchByAccount = new Map();
-        this._lastAutoSwitchMs = 0;
-        this._disposed = false;
         this.ctx = ctx;
         this.deps = deps;
     }
@@ -129,12 +95,12 @@ class AutoSwitch {
     getState() {
         return {
             polling: {
-                enabled: this.ctx.globalState.get(exports.STATE_KEYS.pollingEnabled, false),
-                intervalMs: this.ctx.globalState.get(exports.STATE_KEYS.pollingIntervalMs, exports.DEFAULT_POLLING_INTERVAL_MS)
+                enabled: this.ctx.globalState.get(STATE_KEYS.pollingEnabled, false),
+                intervalMs: this.ctx.globalState.get(STATE_KEYS.pollingIntervalMs, DEFAULT_POLLING_INTERVAL_MS)
             },
             logWatch: {
-                enabled: this.ctx.globalState.get(exports.STATE_KEYS.logWatchEnabled, false),
-                patterns: this.ctx.globalState.get(exports.STATE_KEYS.logWatchPatterns, exports.DEFAULT_LOG_PATTERNS)
+                enabled: this.ctx.globalState.get(STATE_KEYS.logWatchEnabled, false),
+                patterns: this.ctx.globalState.get(STATE_KEYS.logWatchPatterns, DEFAULT_LOG_PATTERNS)
             }
         };
     }
@@ -153,9 +119,9 @@ class AutoSwitch {
     }
     // ----------------- Polling ------------------
     async setPollingEnabled(enabled) {
-        await this.ctx.globalState.update(exports.STATE_KEYS.pollingEnabled, enabled);
+        await this.ctx.globalState.update(STATE_KEYS.pollingEnabled, enabled);
         if (enabled) {
-            const ms = this.ctx.globalState.get(exports.STATE_KEYS.pollingIntervalMs, exports.DEFAULT_POLLING_INTERVAL_MS);
+            const ms = this.ctx.globalState.get(STATE_KEYS.pollingIntervalMs, DEFAULT_POLLING_INTERVAL_MS);
             this.startPolling(ms);
         }
         else {
@@ -163,8 +129,8 @@ class AutoSwitch {
         }
     }
     async setPollingInterval(intervalMs) {
-        const clean = Math.max(15000, intervalMs | 0);
-        await this.ctx.globalState.update(exports.STATE_KEYS.pollingIntervalMs, clean);
+        const clean = Math.max(15_000, intervalMs | 0);
+        await this.ctx.globalState.update(STATE_KEYS.pollingIntervalMs, clean);
         if (this._pollingTimer) {
             // Restart at new rate.
             this.stopPolling();
@@ -204,15 +170,15 @@ class AutoSwitch {
             this._pollingFailStreak++;
             (0, log_1.log)(`autoSwitch: poll failed (${this._pollingFailStreak}):`, e?.message || e);
             if (this._pollingFailStreak === 5) {
-                vscode.window.setStatusBarMessage('$(warning) 自动切号轮询：连续 5 次失败，请检查网络或 idToken', 60000);
+                vscode.window.setStatusBarMessage('$(warning) 自动切号轮询：连续 5 次失败，请检查网络或 idToken', 60_000);
             }
         }
     }
     // ----------------- Log Watch ------------------
     async setLogWatchEnabled(enabled) {
-        await this.ctx.globalState.update(exports.STATE_KEYS.logWatchEnabled, enabled);
+        await this.ctx.globalState.update(STATE_KEYS.logWatchEnabled, enabled);
         if (enabled) {
-            const patterns = this.ctx.globalState.get(exports.STATE_KEYS.logWatchPatterns, exports.DEFAULT_LOG_PATTERNS);
+            const patterns = this.ctx.globalState.get(STATE_KEYS.logWatchPatterns, DEFAULT_LOG_PATTERNS);
             this.startLogWatch(patterns);
         }
         else {
@@ -220,7 +186,7 @@ class AutoSwitch {
         }
     }
     async setLogWatchPatterns(patterns) {
-        await this.ctx.globalState.update(exports.STATE_KEYS.logWatchPatterns, patterns);
+        await this.ctx.globalState.update(STATE_KEYS.logWatchPatterns, patterns);
         if (this._logSessionWatcher) {
             // Rebuild compiled patterns.
             this.compilePatterns(patterns);
@@ -334,7 +300,7 @@ class AutoSwitch {
         this._logScanTimer = setTimeout(() => {
             this._logScanTimer = null;
             void this.scanLogs();
-        }, exports.LOG_WATCH_DEBOUNCE_MS);
+        }, LOG_WATCH_DEBOUNCE_MS);
     }
     async scanLogs() {
         const dir = this._logSessionDir;
@@ -386,7 +352,7 @@ class AutoSwitch {
             if (!id)
                 return;
             const last = this._lastLogMatchByAccount.get(id) ?? 0;
-            if (Date.now() - last < exports.LOG_SAME_ACCOUNT_DEBOUNCE_MS) {
+            if (Date.now() - last < LOG_SAME_ACCOUNT_DEBOUNCE_MS) {
                 return;
             }
             this._lastLogMatchByAccount.set(id, Date.now());
@@ -404,7 +370,7 @@ class AutoSwitch {
     // ----------------- Trigger ------------------
     async runTrigger(trigger) {
         const now = Date.now();
-        if (now - this._lastAutoSwitchMs < exports.AUTO_SWITCH_THROTTLE_MS) {
+        if (now - this._lastAutoSwitchMs < AUTO_SWITCH_THROTTLE_MS) {
             (0, log_1.log)(`autoSwitch: throttled (${(now - this._lastAutoSwitchMs) / 1000 | 0}s since last auto switch)`);
             return;
         }
@@ -422,5 +388,3 @@ class AutoSwitch {
         this._lastAutoSwitchMs = Date.now();
     }
 }
-exports.AutoSwitch = AutoSwitch;
-//# sourceMappingURL=autoSwitch.js.map

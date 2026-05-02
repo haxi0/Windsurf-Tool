@@ -1,46 +1,25 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ensureFreshIdToken = ensureFreshIdToken;
-exports.invalidateToken = invalidateToken;
-const constants_1 = __importStar(require("./constants"));
-const log_1 = __importStar(require("./log"));
-const accountsStore_1 = __importStar(require("./accountsStore"));
-const memoryCreds_1 = __importStar(require("./memoryCreds"));
-const windsurfApi_1 = __importStar(require("./windsurfApi"));
-async function hydrateAccountCreds(account) {
+import * as constants_1 from "./constants";
+import * as log_1 from "./log";
+import * as accountsStore_1 from "./accountsStore";
+import * as memoryCreds_1 from "./memoryCreds";
+import * as windsurfApi_1 from "./windsurfApi";
+import type * as vscode from "vscode";
+import type { Account, LoginResult } from "./types";
+
+interface EnsureFreshIdTokenOptions {
+    forceRelogin?: boolean;
+    preferAuth1?: boolean;
+}
+
+interface TokenCacheEntry {
+    idToken: string;
+    idTokenExpiresAt: number;
+    cachedAt: number;
+}
+
+type TokenCache = Record<string, TokenCacheEntry>;
+
+async function hydrateAccountCreds(account: Account): Promise<Account> {
     if (!account.idToken && !account.refreshToken && !account.password && !account.auth1Token) {
         const creds = await (0, memoryCreds_1.getCreds)(account.id);
         if (creds) {
@@ -60,7 +39,12 @@ async function hydrateAccountCreds(account) {
     }
     return account;
 }
-async function persistLoginResult(context, account, login, passwordOverride) {
+async function persistLoginResult(
+    context: vscode.ExtensionContext,
+    account: Account,
+    login: LoginResult,
+    passwordOverride?: string
+): Promise<string> {
     const expiresAt = Date.now() + login.expiresInSeconds * 1000;
     const password = passwordOverride ?? account.password ?? '';
     await (0, accountsStore_1.applyLoginTokens)(account.id, login.idToken, login.refreshToken || '', expiresAt, login.displayName || account.displayName, passwordOverride, login.authProvider, login.auth1Token || '', login.accountId || '', login.primaryOrgId || '');
@@ -75,7 +59,7 @@ async function persistLoginResult(context, account, login, passwordOverride) {
     await updateCache(context, account.id, login.idToken, expiresAt);
     return login.idToken;
 }
-async function persistAuth1Session(context, account, login) {
+async function persistAuth1Session(context: vscode.ExtensionContext, account: Account, login: LoginResult): Promise<string> {
     const expiresAt = Date.now() + login.expiresInSeconds * 1000;
     await (0, accountsStore_1.applyAuth1Tokens)(account.id, login.idToken, login.auth1Token || '', expiresAt, login.accountId || '', login.primaryOrgId || '');
     await (0, memoryCreds_1.putCreds)(account.id, {
@@ -99,9 +83,13 @@ async function persistAuth1Session(context, account, login) {
  *   3. Last resort: lazy `loadAccountWithSecrets()` which spawns PowerShell.
  *   4. If still expired, firebaseRefresh(refreshToken) or firebaseLogin(email, password).
  */
-async function ensureFreshIdToken(context, account, options = {}) {
+export async function ensureFreshIdToken(
+    context: vscode.ExtensionContext,
+    account: Account,
+    options: EnsureFreshIdTokenOptions = {}
+): Promise<string> {
     const now = Date.now();
-    const cache = (context.globalState.get(constants_1.TOKEN_CACHE_STATE_KEY) || {});
+    const cache = (context.globalState.get<TokenCache>(constants_1.TOKEN_CACHE_STATE_KEY) || {});
     const cached = cache[account.id];
     if (!options.forceRelogin && cached && cached.idToken && cached.idTokenExpiresAt > now + constants_1.TOKEN_SKEW_MS) {
         return cached.idToken;
@@ -168,14 +156,18 @@ async function ensureFreshIdToken(context, account, options = {}) {
     }
     throw new Error('无法获取有效的 IdToken：账号缺少可用凭据（密码 / refreshToken / auth1Token 都不可用）。请用「修复凭据」补充密码。');
 }
-async function updateCache(context, accountId, idToken, idTokenExpiresAt) {
-    const cache = (context.globalState.get(constants_1.TOKEN_CACHE_STATE_KEY) || {});
+async function updateCache(
+    context: vscode.ExtensionContext,
+    accountId: string,
+    idToken: string,
+    idTokenExpiresAt: number
+): Promise<void> {
+    const cache = (context.globalState.get<TokenCache>(constants_1.TOKEN_CACHE_STATE_KEY) || {});
     cache[accountId] = { idToken, idTokenExpiresAt, cachedAt: Date.now() };
     await context.globalState.update(constants_1.TOKEN_CACHE_STATE_KEY, cache);
 }
-async function invalidateToken(context, accountId) {
-    const cache = (context.globalState.get(constants_1.TOKEN_CACHE_STATE_KEY) || {});
+export async function invalidateToken(context: vscode.ExtensionContext, accountId: string): Promise<void> {
+    const cache = (context.globalState.get<TokenCache>(constants_1.TOKEN_CACHE_STATE_KEY) || {});
     delete cache[accountId];
     await context.globalState.update(constants_1.TOKEN_CACHE_STATE_KEY, cache);
 }
-//# sourceMappingURL=tokens.js.map

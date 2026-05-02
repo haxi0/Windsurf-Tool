@@ -1,48 +1,9 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.dpapiUnprotectBatch = dpapiUnprotectBatch;
-exports.dpapiProtectBatch = dpapiProtectBatch;
-exports.dpapiUnprotect = dpapiUnprotect;
-exports.dpapiProtect = dpapiProtect;
-const child_process_1 = __importStar(require("child_process"));
-const fs = __importStar(require("fs"));
-const path = __importStar(require("path"));
-const crypto = __importStar(require("crypto"));
-const constants_1 = __importStar(require("./constants"));
-const log_1 = __importStar(require("./log"));
+import * as child_process_1 from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import * as crypto from "crypto";
+import * as constants_1 from "./constants";
+import * as log_1 from "./log";
 // ---------------------------------------------------------------------------
 // Cross-platform fallback (macOS / Linux): AES-256-GCM with a local key file.
 //
@@ -205,7 +166,7 @@ foreach ($rawLine in $lines) {
 }
 [Console]::Out.Write($out.ToString())
 `;
-function runPowerShell(script, input) {
+function runPowerShell(script: string, input: string): Promise<string> {
     return new Promise((resolve, reject) => {
         const child = (0, child_process_1.spawn)('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { windowsHide: true });
         let stdout = '';
@@ -264,7 +225,7 @@ function runPowerShell(script, input) {
  * Decrypt a batch of base64 DPAPI ciphertexts in one subprocess.
  * Empty inputs map to empty outputs. Failures map to empty strings and are logged.
  */
-async function dpapiUnprotectBatch(ciphers) {
+export async function dpapiUnprotectBatch(ciphers: Array<string | null | undefined>): Promise<string[]> {
     if (ciphers.length === 0) {
         return [];
     }
@@ -309,7 +270,7 @@ async function dpapiUnprotectBatch(ciphers) {
  * Encrypt a batch of UTF-8 plaintexts to base64 DPAPI ciphertexts in one subprocess.
  * Empty inputs map to empty outputs.
  */
-async function dpapiProtectBatch(plaintexts) {
+export async function dpapiProtectBatch(plaintexts: Array<string | null | undefined>): Promise<string[]> {
     if (plaintexts.length === 0) {
         return [];
     }
@@ -345,12 +306,11 @@ async function dpapiProtectBatch(plaintexts) {
     }
     return results;
 }
-async function dpapiUnprotect(base64Cipher) {
+export async function dpapiUnprotect(base64Cipher: string | null | undefined): Promise<string> {
     const [out] = await dpapiUnprotectBatch([base64Cipher]);
     return out || '';
 }
-async function dpapiProtect(plaintext) {
+export async function dpapiProtect(plaintext: string | null | undefined): Promise<string> {
     const [out] = await dpapiProtectBatch([plaintext]);
     return out || '';
 }
-//# sourceMappingURL=dpapi.js.map

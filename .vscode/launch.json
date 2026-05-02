@@ -1,0 +1,33 @@
+{
+  // 标准 VSCode 扩展调试配置。
+  // 按 F5 → 自动 tsc 编译 → 弹出一个新的 Windsurf 窗口（Extension Development Host），
+  // 里面直接加载 src/ 的最新代码。改完代码在调试窗口里 Cmd+R 重载即可看效果。
+  // 不需要打 vsix，不需要 install，不需要重启主窗口。
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "运行扩展（Extension Development Host）",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js"
+      ],
+      "preLaunchTask": "${defaultBuildTask}"
+    },
+    {
+      // 纯 attach 模式，适合你已经用 watch 模式跑着、只想重新 attach debugger。
+      "name": "仅附加调试器（不自动编译）",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js"
+      ]
+    }
+  ]
+}

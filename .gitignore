@@ -4,3 +4,9 @@ node_modules/
 .vscode-test/
 *.bak
 *.log
+
+# 临时备份目录（restore 脚本会留下的）
+out.handedited-backup/
+
+# 本地 AI skills（如 uipro 安装的 ui-ux-pro-max）
+.windsurf/

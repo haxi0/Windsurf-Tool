@@ -1,22 +1,22 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function (o, m, k, k2) {
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
     if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-        desc = { enumerable: true, get: function () { return m[k]; } };
+      desc = { enumerable: true, get: function() { return m[k]; } };
     }
     Object.defineProperty(o, k2, desc);
-}) : (function (o, m, k, k2) {
+}) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
 }));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function (o, v) {
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
     Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function (o, v) {
+}) : function(o, v) {
     o["default"] = v;
 });
 var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function (o) {
+    var ownKeys = function(o) {
         ownKeys = Object.getOwnPropertyNames || function (o) {
             var ar = [];
             for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
@@ -34,8 +34,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AUTH1_PROVIDER = exports.FIREBASE_PROVIDER = exports.URI_FIRE_DELAY_MS = exports.TOKEN_SKEW_MS = exports.TOKEN_CACHE_STATE_KEY = exports.ACCOUNTS_FILE_NAME = exports.MANAGER_DATA_DIR_NAME = exports.USER_AGENT = exports.AUTH1_EXPIRES_IN_SECONDS = exports.WINDSURF_EDITOR_SIGNIN_REFERER = exports.WINDSURF_POST_AUTH_URL = exports.AUTH1_PASSWORD_LOGIN_URL = exports.FIREBASE_REFERER = exports.WINDSURF_ORIGIN = exports.WINDSURF_PLAN_URL = exports.FIREBASE_REFRESH_URL = exports.FIREBASE_LOGIN_URL = exports.FIREBASE_API_KEY = exports.WINDSURF_CALLBACK_URI_BASE = exports.WINDSURF_AUTH_PROVIDER_ID = void 0;
-exports.getAccountsFilePath = getAccountsFilePath;
 exports.getAccountsDir = getAccountsDir;
+exports.getAccountsFilePath = getAccountsFilePath;
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 exports.WINDSURF_AUTH_PROVIDER_ID = 'windsurf_auth';

@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseBatch = parseBatch;
 /**
  * Batch import parser. Extends the desktop Services/ImportParserService to
  * recognise the extra formats the user pastes:
@@ -19,7 +16,7 @@ const EMAIL_PATTERN = '[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}';
 const EMAIL_REGEX = new RegExp(EMAIL_PATTERN);
 const EMAIL_REGEX_FULL = new RegExp(`^${EMAIL_PATTERN}$`);
 const PAIR_TOKEN_REGEX = new RegExp(`(?<email>${EMAIL_PATTERN})\\s*(?:(?:----|@@|[:;|])\\s*|\\s+)(?<password>"[^"\\r\\n]+"|'[^'\\r\\n]+'|\`[^\`\\r\\n]+\`|\\S+)`, 'g');
-function parseBatch(text) {
+export function parseBatch(text) {
     if (!text || !text.trim()) {
         return [];
     }
@@ -289,4 +286,3 @@ function cleanPassword(raw) {
     }
     return v;
 }
-//# sourceMappingURL=importParser.js.map
