@@ -2,7 +2,7 @@
   "name": "windsurf-switch",
   "displayName": "Windsurf Switch",
   "description": "Windsurf 多账号无感切换 — 卡片化 sidebar、不弹浏览器静默换号、跨窗口同步、一键打补丁；账号库与桌面版 windsurf-manager-desktop 共享。Windows / macOS / Linux 通用。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "lango",
   "engines": {
     "vscode": "^1.74.0"
