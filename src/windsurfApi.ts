@@ -70,7 +70,17 @@ async function postJson(url, body, extraHeaders = {}) {
                     await sleep(delayMs);
                     continue;
                 }
-                throw new Error(`${url.split('/').slice(0, 3).join('/')} failed (${resp.status}): ${detail}`);
+                // Include origin+pathname in the error so we can tell which step
+                // of a multi-step flow (e.g. Auth1 step1 vs step2) actually failed.
+                let shortUrl;
+                try {
+                    const u = new URL(url);
+                    shortUrl = `${u.origin}${u.pathname}`;
+                }
+                catch {
+                    shortUrl = url.split('/').slice(0, 3).join('/');
+                }
+                throw new Error(`${shortUrl} failed (${resp.status}): ${detail}`);
             }
             if (!text) {
                 return {};
@@ -142,9 +152,17 @@ export async function auth1Login(email, password) {
  * Auth1 step B: exchange an existing `auth1Token` for a fresh `sessionToken`.
  * Used when we have a still-valid auth1Token on disk but no password — the
  * "auth1-only" account path.
+ *
+ * Windsurf's /_backend/.../WindsurfPostAuth endpoint started requiring the
+ * auth1Token to be passed via the `X-Devin-Auth1-Token` HTTP header (in
+ * addition to the JSON body) around late 2026. Without it the server returns
+ * `401 missing required header: X-Devin-Auth1-Token`.
  */
 export async function auth1PostAuth(auth1Token) {
-    const webHeaders = { Referer: constants_1.WINDSURF_EDITOR_SIGNIN_REFERER };
+    const webHeaders = {
+        Referer: constants_1.WINDSURF_EDITOR_SIGNIN_REFERER,
+        'X-Devin-Auth1-Token': auth1Token
+    };
     const step2 = await postJson(constants_1.WINDSURF_POST_AUTH_URL, { auth1Token, orgId: '' }, webHeaders);
     if (Array.isArray(step2?.orgs) &&
         step2.orgs.length > 0 &&
