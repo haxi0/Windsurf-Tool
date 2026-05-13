@@ -6,12 +6,13 @@ exports.parseBatch = parseBatch;
  * recognise the extra formats the user pastes:
  *
  *   1. JSON array of { email, password } objects
- *   2. Label format:  邮箱：xxx\n密码：yyy  (multi-line, Chinese or English labels)
+ *   2. Label format:  Email: xxx\nPassword: yyy  (multi-line, English labels)
  *   3. CSV:           email,password  (one pair per line, optional header)
  *   4. Tab:           email\tpassword
  *   5. URL query:     email=xxx&password=yyy  (one per line)
  *   6. Inline regex:  email:pwd / email pwd / email----pwd / email@@pwd (w/ quotes)
  *
+ * Fullwidth colons (:) and commas (,) are normalised to their ASCII
  * Fullwidth colons (：) and commas (，) are normalised to their ASCII
  * equivalents so Chinese label paste just works.
  */
@@ -36,23 +37,23 @@ function parseBatch(text) {
         .replace(/\uFF0C/g, ',') // ，
         .replace(/\uFF1B/g, ';') // ；
         .replace(/\uFF5C/g, '|') // ｜
-        .replace(/\uFF3F/g, '_') // ＿ (no-op但保持常识)
+        .replace(/\uFF3F/g, '_') // ＿ (no-op for consistency)
         .replace(/\uFF3C/g, '\\') // ＼
         .replace(/\uFF0F/g, '/') // ／
         .replace(/\uFF0D/g, '-') // －
-        // 全角 @ / = 归一化（罕见但见过）
+        // Full-width @ / = normalization (rare but seen)
         .replace(/\uFF20/g, '@')
         .replace(/\uFF1D/g, '=')
-        // 合并连续 "mailto:" 前缀
+        // Merge consecutive "mailto:" prefixes
         .replace(/\bmailto:\s*/gi, '');
     // 1.5) split multi-label single-lines. Example input (this is the exact
     //      format produced by the extension's "copy credentials" button):
-    //        "账号: alice@x.com    密码: pass123"
-    //      → "账号: alice@x.com\n密码: pass123"
+    //        "Account: alice@x.com    Password: pass123"
+    //      → "Account: alice@x.com\nPassword: pass123"
     //      so that parseLabelFormat can pair them correctly.
     //      The lookahead only fires on known password-ish labels to avoid
     //      accidentally splitting JSON strings or arbitrary content.
-    const LABEL_SPLIT_REGEX = /[\s,;|]+(?=(?:密码|password|passwd|pwd|pass)\s*[:：])/gi;
+    const LABEL_SPLIT_REGEX = /[\s,;|]+(?=(?:密码|password|passwd|pwd|pass)\s*[:：])/gi; // Chinese/English password labels
     const splitLabeled = normalized.replace(LABEL_SPLIT_REGEX, '\n');
     // 2) try strategies in order of specificity. First non-empty result wins.
     const strategies = [
@@ -155,7 +156,7 @@ function parseUrlQuery(text) {
     return out;
 }
 // --- Label format -----------------------------------------------------
-// Multi-line:  邮箱: user@...\n密码: ...   (labels optional, alternating value order)
+// Multi-line:  Email: user@...\nPassword: ...   (labels optional, alternating value order)
 // Ported from desktop PairSequentialValues.
 function parseLabelFormat(text) {
     const lines = text
@@ -213,7 +214,7 @@ function parseLineByLine(text) {
         const line = rawLine.trim();
         if (!line)
             continue;
-        if (/^(email|账号|邮箱)\s*[,:\t]/i.test(line)) {
+        if (/^(email|account|邮箱)\s*[,:\t]/i.test(line)) {
             // CSV/label header row
             continue;
         }

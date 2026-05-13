@@ -229,7 +229,7 @@ function getCurrentAccountId(ctx) {
  * which takes an explicit reason. This plugs the "mysterious null" bug where
  * some background code path (shared-status reader, VSCode memento namespacing
  * quirk, Windsurf S()-chain re-render, etc.) kept nuking the value we'd just
- * set in doSwitch and leaving the user with a "尚未检测到当前账号" UI.
+ * set in doSwitch and leaving the user with a "No current account detected" UI.
  *
  * `callerHint` is printed in the log whenever a null slip-through is caught,
  * so we can finally identify what's trying to clear us.
@@ -654,7 +654,7 @@ function initStatusBar(context) {
 }
 /**
  * Emoji circle whose intrinsic color matches the sidebar's `quotaTone()`
- * thresholds (≤20 红 · ≤60 黄 · 其余 绿). Unknown quota → ⚪.
+ * thresholds (≤20 red · ≤60 yellow · others green). Unknown quota → ⚪.
  */
 function quotaDot(pct) {
     if (typeof pct !== 'number') {
@@ -683,7 +683,7 @@ function updateStatusBar(context) {
         const acc = id ? accounts.find(a => a.id === id) : undefined;
         if (!acc) {
             statusBarItem.text = '$(account) Windsurf';
-            statusBarItem.tooltip = `${getActiveEmail(context) || '未登录'}\n点击切换账号`;
+            statusBarItem.tooltip = `${getActiveEmail(context) || 'Not logged in'}\nClick to switch account`;
             statusBarItem.show();
             return;
         }
@@ -691,13 +691,13 @@ function updateStatusBar(context) {
         const w = typeof acc.weeklyRemainPct === 'number' ? acc.weeklyRemainPct : null;
         const dStr = d === null ? '-' : `${d}%`;
         const wStr = w === null ? '-' : `${w}%`;
-        statusBarItem.text = `${quotaDot(d)} 日 ${dStr} · ${quotaDot(w)} 周 ${wStr}`;
+        statusBarItem.text = `${quotaDot(d)} D ${dStr} · ${quotaDot(w)} W ${wStr}`;
         const ttLines = [`Windsurf: ${acc.email}`];
         if (acc.planName) {
             ttLines.push(`Plan: ${acc.planName}`);
         }
-        ttLines.push(`日: ${dStr}  ·  周: ${wStr}`);
-        ttLines.push('点击切换账号');
+        ttLines.push(`Daily: ${dStr}  ·  Weekly: ${wStr}`);
+        ttLines.push('Click to switch account');
         statusBarItem.tooltip = ttLines.join('\n');
         statusBarItem.show();
     }
@@ -746,7 +746,7 @@ function activate(context) {
         initStatusBar(context);
         sidebar.setOnDidReload(() => updateStatusBar(context));
         // Auto-patch Windsurf core on startup so a fresh install doesn't
-        // require the user to run "给 Windsurf 打补丁" by hand. Silent-fail:
+        // require the user to run "Patch Windsurf" by hand. Silent-fail:
         // if the app is read-only, or we're on a mismatched Windsurf version,
         // just log and move on; the user can still run the command manually.
         void tryAutoPatchOnStartup(context);
@@ -763,7 +763,7 @@ function activate(context) {
         })();
         context.subscriptions.push(installActiveFileWatcher(context, sidebar));
         // Initial session sync — trust Windsurf's auth provider over our
-        // cached globalState. This fixes the "首次安装时 UI 显示未切号" bug
+        // cached globalState. This fixes the "First install UI shows not switched" bug
         // when Windsurf is already logged in.
         void (async () => {
             try {
@@ -828,7 +828,7 @@ function activate(context) {
     catch (e) {
         (0, log_1.log)('activate() failed:', e?.stack || e?.message || e);
         (0, log_1.getOutputChannel)().show(true);
-        vscode.window.showErrorMessage(`Windsurf Switch 激活失败：${e?.message || e}。请查看 Output → Windsurf Switch`);
+        vscode.window.showErrorMessage(`Windsurf Switch activation failed: ${e?.message || e}. Please check Output → Windsurf Switch`);
         throw e;
     }
 }
@@ -851,6 +851,7 @@ function registerCommands(context, sidebar) {
     sub.push(vscode.commands.registerCommand('windsurfSwitch.switchAccountById', (accountId) => switchById(context, sidebar, accountId)));
     sub.push(vscode.commands.registerCommand('windsurfSwitch.switchByIdToken', () => cmdSwitchByIdToken()));
     sub.push(vscode.commands.registerCommand('windsurfSwitch.addAccount', () => cmdAddAccount(sidebar)));
+    sub.push(vscode.commands.registerCommand('windsurfSwitch.addAccountGitHub', () => cmdAddAccountGitHub(sidebar)));
     sub.push(vscode.commands.registerCommand('windsurfSwitch.batchImport', () => cmdBatchImport(sidebar)));
     sub.push(vscode.commands.registerCommand('windsurfSwitch._submitAddFromModal', (args) => cmdSubmitAddFromModal(sidebar, args)));
     sub.push(vscode.commands.registerCommand('windsurfSwitch._submitBatchFromModal', (args) => cmdSubmitBatchFromModal(sidebar, args)));
@@ -907,13 +908,13 @@ async function tryAutoPatchOnStartup(context) {
         }
         const userDisabled = context.globalState.get(PATCHER_FLAGS.userDisabled, false);
         if (userDisabled) {
-            (0, log_1.log)('[auto-patch] skipped: user has explicitly unpatched previously (run "给 Windsurf 打补丁" to re-enable auto)');
+            (0, log_1.log)('[auto-patch] skipped: user has explicitly unpatched previously (run "Patch Windsurf" to re-enable auto)');
             return;
         }
         (0, log_1.log)('[auto-patch] patch missing, attempting silent apply...');
         const r = await (0, windsurfPatcher_1.applyPatch)();
         if (!r.success) {
-            (0, log_1.log)(`[auto-patch] failed (user can run "给 Windsurf 打补丁" to retry): ${r.error}`);
+            (0, log_1.log)(`[auto-patch] failed (user can run "Patch Windsurf" to retry): ${r.error}`);
             return;
         }
         if (r.alreadyApplied) {
@@ -935,8 +936,8 @@ async function tryAutoPatchOnStartup(context) {
         // Defer the reload prompt so it doesn't fight with the sidebar's
         // initial render.
         setTimeout(async () => {
-            const choice = await vscode.window.showInformationMessage('Windsurf Switch 已自动为 Windsurf 打补丁（启用无浏览器切号）。重载窗口后生效。', '重载窗口', '稍后');
-            if (choice === '重载窗口') {
+            const choice = await vscode.window.showInformationMessage('Windsurf Switch has automatically patched Windsurf (enabled no-browser switching). Reload window to take effect.', 'Reload Window', 'Later');
+            if (choice === 'Reload Window') {
                 await vscode.commands.executeCommand('workbench.action.reloadWindow');
             }
         }, 1500);
@@ -948,23 +949,23 @@ async function tryAutoPatchOnStartup(context) {
 async function cmdPatchWindsurf(context) {
     const extPath = (0, windsurfPatcher_1.findWindsurfExtensionPath)();
     if (!extPath) {
-        vscode.window.showErrorMessage('未找到 Windsurf 核心扩展（codeium.windsurf）的 dist/extension.js');
+        vscode.window.showErrorMessage('Windsurf core extension (codeium.windsurf) dist/extension.js not found');
         return;
     }
     if ((0, windsurfPatcher_1.isPatchApplied)(extPath)) {
         // User explicitly requested patch → clear the "don't auto-apply" flag.
         if (context)
             await context.globalState.update(PATCHER_FLAGS.userDisabled, false);
-        vscode.window.showInformationMessage('Windsurf 核心已经是 patch 过的版本，无需重复打补丁。');
+        vscode.window.showInformationMessage('Windsurf core is already patched, no need to patch again.');
         return;
     }
-    const consent = await vscode.window.showWarningMessage('将修改 Windsurf 应用本体的 dist/extension.js 以启用「无浏览器切号」（会写一份 .aliu-backup 备份）。继续吗？\n\n注：Windsurf 升级后需要重新打补丁。', { modal: true }, '继续');
-    if (consent !== '继续') {
+    const consent = await vscode.window.showWarningMessage('Will modify Windsurf app dist/extension.js to enable "no-browser switching" (will write .aliu-backup). Continue?\n\nNote: Need to re-patch after Windsurf upgrades.', { modal: true }, 'Continue');
+    if (consent !== 'Continue') {
         return;
     }
-    const r = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: '正在为 Windsurf 打补丁...', cancellable: false }, () => (0, windsurfPatcher_1.applyPatch)());
+    const r = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Patching Windsurf...', cancellable: false }, () => (0, windsurfPatcher_1.applyPatch)());
     if (!r.success) {
-        vscode.window.showErrorMessage(`补丁失败：${r.error}`);
+        vscode.window.showErrorMessage(`Patch failed: ${r.error}`);
         (0, log_1.log)(`patchWindsurf failed: ${r.error}`);
         return;
     }
@@ -972,21 +973,21 @@ async function cmdPatchWindsurf(context) {
     if (context)
         await context.globalState.update(PATCHER_FLAGS.userDisabled, false);
     if (r.alreadyApplied) {
-        vscode.window.showInformationMessage('已是 patch 过的版本（重载窗口即生效）。');
+        vscode.window.showInformationMessage('Already patched version (reload window to take effect).');
         return;
     }
     (0, log_1.log)(`patchWindsurf applied → ${extPath}`);
     // showWarningMessage MUST be outside the withProgress callback so the
     // notification dismisses promptly and the user can see / click the prompt.
-    const reload = await vscode.window.showWarningMessage('补丁已应用，需要重载窗口才能生效。', '重载窗口', '稍后');
-    if (reload === '重载窗口') {
+    const reload = await vscode.window.showWarningMessage('Patch applied, need to reload window to take effect.', 'Reload Window', 'Later');
+    if (reload === 'Reload Window') {
         await vscode.commands.executeCommand('workbench.action.reloadWindow');
     }
 }
 async function cmdUnpatchWindsurf(context) {
     const extPath = (0, windsurfPatcher_1.findWindsurfExtensionPath)();
     if (!extPath) {
-        vscode.window.showErrorMessage('未找到 Windsurf 核心扩展的 dist/extension.js');
+        vscode.window.showErrorMessage('Windsurf core extension dist/extension.js not found');
         return;
     }
     if (!(0, windsurfPatcher_1.isPatchApplied)(extPath)) {
@@ -994,46 +995,46 @@ async function cmdUnpatchWindsurf(context) {
         // doesn't silently re-apply on the next activation.
         if (context)
             await context.globalState.update(PATCHER_FLAGS.userDisabled, true);
-        vscode.window.showInformationMessage('当前没有 patch（已是原始 Windsurf）。已禁用自动打补丁（再次打补丁将重新启用）。');
+        vscode.window.showInformationMessage('No patch currently applied (already original Windsurf). Auto-patching disabled (patch again to re-enable).');
         return;
     }
-    const consent = await vscode.window.showWarningMessage('将从 .aliu-backup 恢复原始 Windsurf extension.js。继续吗？', { modal: true }, '继续');
-    if (consent !== '继续') {
+    const consent = await vscode.window.showWarningMessage('Will restore original Windsurf extension.js from .aliu-backup. Continue?', { modal: true }, 'Continue');
+    if (consent !== 'Continue') {
         return;
     }
-    const r = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: '正在恢复 Windsurf...', cancellable: false }, () => (0, windsurfPatcher_1.restorePatch)());
+    const r = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Restoring Windsurf...', cancellable: false }, () => (0, windsurfPatcher_1.restorePatch)());
     if (!r.success) {
-        vscode.window.showErrorMessage(`恢复失败：${r.error}`);
+        vscode.window.showErrorMessage(`Restore failed: ${r.error}`);
         return;
     }
     // User has explicitly unpatched → stop autopilot from re-applying.
     if (context)
         await context.globalState.update(PATCHER_FLAGS.userDisabled, true);
-    const reload = await vscode.window.showWarningMessage('Windsurf 已恢复，需要重载窗口才能生效。后续「智能切号」将回退到浏览器登录路径。', '重载窗口', '稍后');
-    if (reload === '重载窗口') {
+    const reload = await vscode.window.showWarningMessage('Windsurf restored, need to reload window to take effect. Smart switch will fall back to browser login.', 'Reload Window', 'Later');
+    if (reload === 'Reload Window') {
         await vscode.commands.executeCommand('workbench.action.reloadWindow');
     }
 }
 async function cmdCheckPatchStatus() {
     const extPath = (0, windsurfPatcher_1.findWindsurfExtensionPath)();
     if (!extPath) {
-        vscode.window.showErrorMessage('未找到 Windsurf 核心扩展的 dist/extension.js');
+        vscode.window.showErrorMessage('Windsurf core extension dist/extension.js not found');
         return;
     }
     const applied = (0, windsurfPatcher_1.isPatchApplied)(extPath);
     const cmdAvailable = (await vscode.commands.getCommands(true)).includes(windsurfPatcher_1.PATCH_COMMAND_ID);
     const lines = [
-        `Windsurf 核心：${extPath}`,
-        `补丁文件：${applied ? '已应用 ✓' : '未应用 ✗'}`,
-        `运行时命令：${cmdAvailable ? '已注册 ✓（无浏览器切号可用）' : '未注册 ✗'}`,
+        `Windsurf Core: ${extPath}`,
+        `Patch File: ${applied ? 'Applied ✓' : 'Not Applied ✗'}`,
+        `Runtime Command: ${cmdAvailable ? 'Registered ✓ (No-browser switching available)' : 'Not Registered ✗'}`,
     ];
     if (applied && !cmdAvailable) {
         lines.push('');
-        lines.push('补丁已写入但运行时命令尚未注册——请重载窗口（Cmd+Shift+P → Developer: Reload Window）。');
+        lines.push('Patch written but runtime command not yet registered——please reload window (Cmd+Shift+P → Developer: Reload Window).');
     }
     if (!applied) {
         lines.push('');
-        lines.push('运行 Windsurf Switch: 给 Windsurf 打补丁 启用无浏览器切号。');
+        lines.push('Run Windsurf Switch: Patch Windsurf to enable no-browser switching.');
     }
     vscode.window.showInformationMessage(lines.join('\n'), { modal: true });
 }
@@ -1053,18 +1054,18 @@ function statusWarn(msg) {
 async function pickAndSwitch(context, sidebar) {
     const accounts = sidebar.accounts.length > 0 ? sidebar.accounts : await (0, accountsStore_1.loadManagerAccounts)();
     if (!(0, accountsStore_1.accountsFileExists)() || accounts.length === 0) {
-        const action = await vscode.window.showInformationMessage('还没有账号。现在添加一个？', '添加账号', '打开 accounts.json 目录');
-        if (action === '添加账号') {
+        const action = await vscode.window.showInformationMessage('No accounts yet. Add one now?', 'Add Account', 'Open accounts.json Directory');
+        if (action === 'Add Account') {
             await vscode.commands.executeCommand('windsurfSwitch.addAccount');
         }
-        else if (action === '打开 accounts.json 目录') {
+        else if (action === 'Open accounts.json Directory') {
             await vscode.commands.executeCommand('windsurfSwitch.openAccountsFile');
         }
         return;
     }
     const usable = accounts.filter(isSwitchable);
     if (usable.length === 0) {
-        vscode.window.showWarningMessage('暂无可切换账号：需要密码 / refreshToken / auth1Token 至少一项。可用「修复凭据」补充密码。');
+        vscode.window.showWarningMessage('No switchable accounts: need password / refreshToken / auth1Token (at least one). Use "Fix Credentials" to add password.');
         return;
     }
     const picks = usable
@@ -1077,8 +1078,8 @@ async function pickAndSwitch(context, sidebar) {
         account: a
     }));
     const pick = await vscode.window.showQuickPick(picks, {
-        title: '切换 Windsurf 账号 (Windsurf 窗口不会关闭)',
-        placeHolder: '选择目标账号'
+        title: 'Switch Windsurf Account (Windsurf window will not close)',
+        placeHolder: 'Select target account'
     });
     if (!pick) {
         return;
@@ -1086,9 +1087,13 @@ async function pickAndSwitch(context, sidebar) {
     await doSwitch(context, sidebar, pick.account);
 }
 async function switchById(context, sidebar, accountId) {
-    const account = sidebar.findAccount(accountId) ?? (await (0, accountsStore_1.loadManagerAccounts)()).find(a => a.id === accountId);
+    let account = sidebar.findAccount(accountId);
     if (!account) {
-        vscode.window.showErrorMessage(`找不到账号 id=${accountId}`);
+        const all = await (0, accountsStore_1.loadManagerAccounts)();
+        account = all.find(a => a.id === accountId);
+    }
+    if (!account) {
+        vscode.window.showErrorMessage(`Account not found: id=${accountId}`);
         return;
     }
     await doSwitch(context, sidebar, account);
@@ -1099,13 +1104,13 @@ async function doSwitch(context, sidebar, account) {
     // bottom-right toast that lingers.
     await vscode.window.withProgress({
         location: vscode.ProgressLocation.Window,
-        title: `Windsurf: 切到 ${account.email}`,
+        title: `Windsurf: Switch to ${account.email}`,
         cancellable: false
     }, async (progress) => {
         try {
-            progress.report({ message: '获取 IdToken...' });
+            progress.report({ message: 'Getting IdToken...' });
             const idToken = await (0, tokens_1.ensureFreshIdToken)(context, account);
-            progress.report({ message: '通知 Windsurf 切 session...' });
+            progress.report({ message: 'Notifying Windsurf to switch session...' });
             const session = await (0, seamlessSwitch_1.seamlessSwitch)(idToken, { email: account.email, displayName: account.displayName });
             await setCurrentAccountId(context, account.id, 'doSwitch');
             await setActiveEmail(context, account.email, 'doSwitch');
@@ -1115,7 +1120,7 @@ async function doSwitch(context, sidebar, account) {
             await rememberSessionLabel(context, session?.account?.label, account.email);
             // Stop polling from immediately re-triggering on the very next tick.
             autoSwitch?.noteExternalSwitch();
-            statusOk(`已切到 ${session?.account?.label ?? account.email}`);
+            statusOk(`Switched to ${session?.account?.label ?? account.email}`);
             (0, log_1.log)(`switched to ${session?.account?.label ?? account.email}`);
             if (previousAccountId && previousAccountId !== account.id) {
                 void refreshAccountQuotaSilently(context, sidebar, previousAccountId);
@@ -1124,7 +1129,7 @@ async function doSwitch(context, sidebar, account) {
         catch (e) {
             (0, log_1.log)('doSwitch failed:', e);
             await (0, tokens_1.invalidateToken)(context, account.id);
-            vscode.window.showErrorMessage(`切号失败：${e?.message || e}`);
+            vscode.window.showErrorMessage(`Switch failed: ${e?.message || e}`);
         }
         finally {
             await sidebar.reload();
@@ -1133,22 +1138,22 @@ async function doSwitch(context, sidebar, account) {
 }
 async function cmdSwitchByIdToken() {
     const token = await vscode.window.showInputBox({
-        title: '用 Firebase IdToken 切号 (调试)',
-        prompt: '粘贴 Firebase IdToken',
+        title: 'Switch with Firebase IdToken (Debug)',
+        prompt: 'Paste Firebase IdToken',
         password: true,
         ignoreFocusOut: true
     });
     if (!token) {
         return;
     }
-    await vscode.window.withProgress({ location: vscode.ProgressLocation.Window, title: 'Windsurf: 切 session...' }, async () => {
+    await vscode.window.withProgress({ location: vscode.ProgressLocation.Window, title: 'Windsurf: Switching session...' }, async () => {
         try {
             const session = await (0, seamlessSwitch_1.seamlessSwitch)(token);
-            statusOk(`已切到 ${session?.account?.label ?? 'account'}`);
+            statusOk(`Switched to ${session?.account?.label ?? 'account'}`);
         }
         catch (e) {
             (0, log_1.log)('cmdSwitchByIdToken failed:', e);
-            vscode.window.showErrorMessage(`切号失败：${e?.message || e}`);
+            vscode.window.showErrorMessage(`Switch failed: ${e?.message || e}`);
         }
     });
 }
@@ -1162,7 +1167,7 @@ async function cmdAddAccount(sidebar) {
     await sidebar.openModal('add');
 }
 /**
- * Internal command invoked by the sidebar modal's "添加" button.
+ * Internal command invoked by the sidebar modal's "Add" button.
  * Validates args, runs the login + store flow, and reports back to the
  * webview so the modal can close or show an inline error.
  */
@@ -1170,17 +1175,17 @@ async function cmdSubmitAddFromModal(sidebar, args) {
     const email = (args?.email || '').trim();
     const password = args?.password || '';
     if (!email || !email.includes('@')) {
-        sidebar.postModalError('请输入合法邮箱');
+        sidebar.postModalError('Please enter a valid email');
         return;
     }
     if (!password) {
-        sidebar.postModalError('密码不能为空');
+        sidebar.postModalError('Password cannot be empty');
         return;
     }
     try {
         const result = await addOneAccount(email, password);
         sidebar.postModalClose();
-        statusOk(`已添加 ${result.email}`);
+        statusOk(`Added ${result.email}`);
         (0, log_1.log)(`addAccount(modal): ${result.email}`);
     }
     catch (e) {
@@ -1251,6 +1256,117 @@ async function addOneAccount(email, password) {
     return account;
 }
 // ---------------------------------------------------------------------------
+// Add account via GitHub OAuth (Continue with Devin > Continue with GitHub)
+//
+// Windsurf's signin page (windsurf.com/windsurf/signin) shows a "Continue
+// with GitHub" button. After the user authenticates, Windsurf's own auth
+// provider receives the callback via the windsurf:// URI scheme and emits
+// a session with accessToken = the firebase idToken (or devin session token).
+//
+// We trigger getSession(forceNewSession) to run that full browser flow, then
+// read the resulting accessToken and import the account just like addOneAccount.
+// ---------------------------------------------------------------------------
+async function cmdAddAccountGitHub(sidebar) {
+    try {
+        // forceNewSession opens the Windsurf signin page in the browser.
+        // The user picks "Continue with GitHub" there. Windsurf handles the
+        // OAuth callback internally and resolves getSession with the new session.
+        const session = await vscode.authentication.getSession(constants_1.WINDSURF_AUTH_PROVIDER_ID, ['Login'], { forceNewSession: true });
+        if (!session?.accessToken) {
+            vscode.window.showErrorMessage('GitHub login cancelled or did not return a token.');
+            return;
+        }
+        const idToken = session.accessToken;
+        const displayName = session.account?.label || '';
+        // Import the account using the token from the new session.
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: 'Windsurf Switch: Importing GitHub account…',
+            cancellable: false
+        }, async () => {
+            await addOneAccountFromToken(idToken, displayName);
+        });
+        statusOk(`Added ${displayName || 'GitHub account'}`);
+        (0, log_1.log)(`addAccountGitHub: ${displayName}`);
+        await sidebar.reload();
+    }
+    catch (e) {
+        (0, log_1.log)('cmdAddAccountGitHub failed:', e);
+        vscode.window.showErrorMessage(`GitHub login failed: ${e?.message || e}`);
+    }
+}
+/**
+ * Import an account from a Windsurf api key (session.accessToken).
+ *
+ * Windsurf's auth provider stores the api key as accessToken — it is already
+ * the fully resolved credential (sk-ws-01... for firebase accounts or
+ * devin-session-token$... for Auth1/devin accounts). We store it directly
+ * as idToken; no auth1PostAuth or registerUser call is needed.
+ *
+ * authProvider is determined by the token prefix:
+ *   devin-session-token$ → auth1   (Auth1 / devin / GitHub OAuth)
+ *   anything else        → firebase (firebase api key)
+ */
+async function addOneAccountFromToken(apiKey, displayNameHint) {
+    const DEVIN_PREFIX = 'devin-session-token$';
+    const isDevin = typeof apiKey === 'string' && apiKey.startsWith(DEVIN_PREFIX);
+    const authProvider = isDevin ? constants_1.AUTH1_PROVIDER : constants_1.FIREBASE_PROVIDER;
+    // Auth1 tokens are valid for 14 days; firebase api keys don't expire via time
+    // but we flag a generous TTL so ensureFreshIdToken doesn't prematurely invalidate.
+    const expiresInSeconds = isDevin ? constants_1.AUTH1_EXPIRES_IN_SECONDS : 3600;
+    const now = Date.now();
+    const email = displayNameHint || 'github-user';
+    const account = {
+        id: `${now}-${crypto.randomBytes(3).toString('hex')}`,
+        email,
+        displayName: displayNameHint || '',
+        authProvider,
+        accountId: '',
+        primaryOrgId: '',
+        password: '',
+        idToken: apiKey,
+        refreshToken: '',
+        auth1Token: isDevin ? apiKey : '',
+        idTokenExpiresAt: now + expiresInSeconds * 1000,
+        createdAt: new Date().toISOString(),
+        planName: 'Free',
+        dailyRemainPct: null,
+        weeklyRemainPct: null,
+        dailyResetUnix: null,
+        weeklyResetUnix: null,
+        expiresAt: '',
+        gracePeriodStatus: '',
+        lastQueryTime: '',
+        quotaError: false,
+        remark: '',
+        hasWindsurfSessionSnapshot: false,
+        windsurfSessionCapturedAt: '',
+        hasCredentials: true
+    };
+    await (0, accountsStore_1.addAccount)(account);
+    try {
+        await (0, memoryCreds_1.putCreds)(account.id, {
+            email: account.email,
+            password: '',
+            idToken: account.idToken,
+            refreshToken: account.refreshToken,
+            auth1Token: account.auth1Token,
+            idTokenExpiresAt: account.idTokenExpiresAt
+        });
+    }
+    catch (e) {
+        (0, log_1.log)(`putCreds after GitHub addAccount failed for ${email}:`, e?.message || e);
+    }
+    try {
+        const snap = await (0, windsurfApi_1.getPlanStatus)(apiKey);
+        await (0, accountsStore_1.applySnapshot)(account.id, snap);
+    }
+    catch (e) {
+        (0, log_1.log)(`initial getPlanStatus failed for ${email}:`, e?.message || e);
+    }
+    return account;
+}
+// ---------------------------------------------------------------------------
 // Batch import  (port of desktop BatchImportWindow + MainWindowViewModel.BatchImportAsync)
 // ---------------------------------------------------------------------------
 async function cmdBatchImport(sidebar) {
@@ -1260,14 +1376,14 @@ async function cmdBatchImport(sidebar) {
 }
 /**
  * Internal command invoked by the sidebar batch-import modal's
- * "开始导入" button. Parses the raw text with the existing importParser
+ * "Start Import" button. Parses the raw text with the existing importParser
  * and kicks off the shared progress-tracked import loop.
  */
 async function cmdSubmitBatchFromModal(sidebar, args) {
     const text = args?.text || '';
     const pairs = (0, importParser_1.parseBatch)(text);
     if (pairs.length === 0) {
-        statusWarn('没解析到任何账号');
+        statusWarn('No accounts parsed');
         return;
     }
     await runBatchImport(sidebar, pairs);
@@ -1275,7 +1391,7 @@ async function cmdSubmitBatchFromModal(sidebar, args) {
 async function runBatchImport(sidebar, pairs) {
     await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
-        title: `批量导入 0/${pairs.length}`,
+        title: `Batch Import 0/${pairs.length}`,
         cancellable: true
     }, async (progress, token) => {
         let ok = 0;
@@ -1296,7 +1412,7 @@ async function runBatchImport(sidebar, pairs) {
             }
             catch (e) {
                 const msg = String(e?.message || e);
-                if (msg.includes('已存在')) {
+                if (msg.includes('already exists')) {
                     skip++;
                 }
                 else {
@@ -1305,7 +1421,7 @@ async function runBatchImport(sidebar, pairs) {
                 }
             }
         }
-        vscode.window.showInformationMessage(`批量导入完成：新增 ${ok} · 跳过 ${skip} · 失败 ${fail}${fail ? ' (详见日志)' : ''}`);
+        vscode.window.showInformationMessage(`Batch Import Complete: Added ${ok} · Skipped ${skip} · Failed ${fail}${fail ? ' (see logs)' : ''}`);
         await sidebar.reload();
     });
 }
@@ -1315,19 +1431,19 @@ async function runBatchImport(sidebar, pairs) {
 async function deleteById(context, sidebar, accountId) {
     const account = sidebar.findAccount(accountId);
     const label = account?.email || accountId;
-    const confirmed = await vscode.window.showWarningMessage(`确定删除 ${label} 吗？此操作不可撤销。`, { modal: true }, '删除');
-    if (confirmed !== '删除') {
+    const confirmed = await vscode.window.showWarningMessage(`Confirm delete ${label}? This action cannot be undone.`, { modal: true }, 'Delete');
+    if (confirmed !== 'Delete') {
         return;
     }
     try {
         await (0, accountsStore_1.deleteAccount)(accountId);
         await (0, tokens_1.invalidateToken)(context, accountId);
         await (0, memoryCreds_1.removeCreds)(accountId);
-        statusOk(`已删除 ${label}`);
+        statusOk(`Deleted ${label}`);
     }
     catch (e) {
         (0, log_1.log)('deleteById failed:', e);
-        vscode.window.showErrorMessage(`删除失败：${e?.message || e}`);
+        vscode.window.showErrorMessage(`Delete failed: ${e?.message || e}`);
     }
     finally {
         await sidebar.reload();
@@ -1339,38 +1455,38 @@ async function deleteById(context, sidebar, accountId) {
 async function editRemarkById(sidebar, accountId) {
     const account = sidebar.findAccount(accountId);
     if (!account) {
-        vscode.window.showErrorMessage('账号不存在，请刷新后重试');
+        vscode.window.showErrorMessage('Account not found, please refresh and try again');
         return;
     }
     const value = await vscode.window.showInputBox({
-        title: `备注 - ${account.email}`,
-        prompt: '最多 4 个字符',
+        title: `Remark - ${account.email}`,
+        prompt: 'Up to 4 characters',
         value: account.remark,
         ignoreFocusOut: true,
-        validateInput: v => (v.length <= 4 ? undefined : '不超过 4 个字符')
+        validateInput: v => (v.length <= 4 ? undefined : 'No more than 4 characters')
     });
     if (value === undefined) {
         return;
     }
     try {
         await (0, accountsStore_1.updateRemark)(accountId, value);
-        statusOk(`备注已保存`);
+        statusOk(`Remark saved`);
     }
     catch (e) {
         (0, log_1.log)('editRemarkById failed:', e);
-        vscode.window.showErrorMessage(`修改失败：${e?.message || e}`);
+        vscode.window.showErrorMessage(`Update failed: ${e?.message || e}`);
     }
     finally {
         await sidebar.reload();
     }
 }
 // ---------------------------------------------------------------------------
-// Credentials (解密后显示邮箱/密码，带复制按钮) — port of CredentialsWindow
+// Credentials (decrypted display of email/password, with copy button) — port of CredentialsWindow
 // ---------------------------------------------------------------------------
 async function showCredentials(sidebar, accountId) {
     const account = sidebar.findAccount(accountId);
     if (!account) {
-        vscode.window.showErrorMessage('账号不存在，请刷新后重试');
+        vscode.window.showErrorMessage('Account not found, please refresh and try again');
         return;
     }
     await sidebar.openModal('creds', { id: accountId, email: account.email });
@@ -1412,14 +1528,14 @@ async function refreshOne(context, sidebar, accountId) {
         account = all.find(a => a.id === accountId);
     }
     if (!account) {
-        vscode.window.showErrorMessage('账号不存在');
+        vscode.window.showErrorMessage('Account not found');
         return;
     }
-    await vscode.window.withProgress({ location: vscode.ProgressLocation.Window, title: `Windsurf: 刷新 ${account.email}...` }, async () => {
+    await vscode.window.withProgress({ location: vscode.ProgressLocation.Window, title: `Windsurf: Refresh ${account.email}...` }, async () => {
         try {
             const snap = await getPlanStatusWithRecovery(context, account);
             await (0, accountsStore_1.applySnapshot)(account.id, snap);
-            statusOk(`${account.email}: ${snap.planName} · 日${snap.dailyRemainPct ?? '-'}% · 周${snap.weeklyRemainPct ?? '-'}%`);
+            statusOk(`${account.email}: ${snap.planName} · Daily ${snap.dailyRemainPct ?? '-'}% · Weekly ${snap.weeklyRemainPct ?? '-'}%`);
         }
         catch (e) {
             (0, log_1.log)('refreshOne failed:', e);
@@ -1442,9 +1558,9 @@ async function refreshAll(context, sidebar) {
     if (accounts.length === 0) {
         return;
     }
-    // 按用户要求：刷新全部时总是清空智能切号冷却池。
+    // As requested: always clear smart switch cooldown pool when refreshing all.
     await clearSmartHistory(context);
-    // Free 账号节流：counter % N === 0 的那一轮才把 Free 纳入刷新。
+    // Free account throttling: only include Free accounts when counter % N === 0.
     const counter = (context.globalState.get(GS.refreshAllCounter) || 0) + 1;
     await context.globalState.update(GS.refreshAllCounter, counter);
     const includeFree = counter % FREE_REFRESH_EVERY_N === 0;
@@ -1452,20 +1568,20 @@ async function refreshAll(context, sidebar) {
         .filter(isSwitchable)
         .filter(a => includeFree || (a.planName || '').toLowerCase() !== 'free');
     if (switchable.length === 0) {
-        // 只有 Free 且本轮被跳过，或者没有任何可刷账号。
+        // Only Free accounts and skipped this round, or no refreshable accounts.
         if (!includeFree && accounts.some(a => (a.planName || '').toLowerCase() === 'free')) {
-            statusOk(`本轮跳过 Free 账号（每 ${FREE_REFRESH_EVERY_N} 次刷新 1 次）`);
+            statusOk(`Skipping free accounts this round (1 in every ${FREE_REFRESH_EVERY_N} refreshes)`); // Translated
         }
         else {
-            vscode.window.showInformationMessage('没有可刷新的账号');
+            vscode.window.showInformationMessage('No accounts to refresh');
         }
-        // 即使不刷，也通知 sidebar 刷新一下（冷却已清）
+        // Even if not refreshing, notify sidebar to reload (cooldown cleared)
         await sidebar.reload();
         return;
     }
     await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
-        title: `批量刷新 0/${switchable.length}`,
+        title: `Batch Refresh 0/${switchable.length}`,
         cancellable: true
     }, async (progress, token) => {
         const total = switchable.length;
@@ -1503,7 +1619,7 @@ async function refreshAll(context, sidebar) {
         catch (e) {
             (0, log_1.log)('applyManySnapshots failed:', e?.message || e);
         }
-        vscode.window.showInformationMessage(`批量刷新完成：成功 ${done - failed} · 失败 ${failed}`);
+        vscode.window.showInformationMessage(`Batch Refresh Complete: Success ${done - failed} · Failed ${failed}`);
         await sidebar.reload();
     });
 }
@@ -1514,24 +1630,24 @@ async function fixCredentialsById(sidebar, accountId) {
     const records = await (0, accountsStore_1.loadAccountsEncrypted)();
     const rec = records.find(r => r.id === accountId);
     if (!rec) {
-        vscode.window.showErrorMessage('账号不存在');
+        vscode.window.showErrorMessage('Account does not exist');
         return;
     }
     const email = rec.email || '';
     if (!email) {
-        vscode.window.showErrorMessage('账号缺失邮箱，无法修复。请先删除后重新添加。');
+        vscode.window.showErrorMessage('Account missing email, cannot fix. Please delete and re-add.');
         return;
     }
     const password = await vscode.window.showInputBox({
-        title: `修复凭据 - ${email}`,
-        prompt: '输入该账号的密码（用于重新登录并获取 refreshToken）',
+        title: `Fix Credentials - ${email}`,
+        prompt: 'Enter password for this account (to re-login and get refreshToken)',
         password: true,
         ignoreFocusOut: true
     });
     if (!password) {
         return;
     }
-    await vscode.window.withProgress({ location: vscode.ProgressLocation.Window, title: `Windsurf: 重新登录 ${email}...` }, async () => {
+    await vscode.window.withProgress({ location: vscode.ProgressLocation.Window, title: `Windsurf: Re-login ${email}...` }, async () => {
         try {
             const login = await (0, windsurfApi_1.login)(email, password);
             const expiresAt = Date.now() + login.expiresInSeconds * 1000;
@@ -1545,11 +1661,11 @@ async function fixCredentialsById(sidebar, accountId) {
                 idTokenExpiresAt: expiresAt
             });
             await (0, memoryCreds_1.updateTokenFields)(accountId, login.idToken, login.refreshToken || '', expiresAt);
-            statusOk(`已修复 ${email} 的凭据`);
+            statusOk(`Fixed credentials for ${email}`);
         }
         catch (e) {
             (0, log_1.log)('fixCredentialsById failed:', e);
-            vscode.window.showErrorMessage(`修复失败：${e?.message || e}`);
+            vscode.window.showErrorMessage(`Fix failed: ${e?.message || e}`);
         }
         finally {
             await sidebar.reload();
@@ -1574,12 +1690,12 @@ async function cmdListAccounts() {
 }
 // ---------------------------------------------------------------------------
 // Export accounts to clipboard — `email:password\n` lines, ready to paste
-// back into "批量导入" on another machine. Single batched DPAPI call.
+// back into "Batch Import" on another machine. Single batched DPAPI call.
 // ---------------------------------------------------------------------------
 async function cmdExportAccounts() {
     const records = await (0, accountsStore_1.loadAccountsEncrypted)();
     if (records.length === 0) {
-        vscode.window.showInformationMessage('没有账号可导出。');
+        vscode.window.showInformationMessage('No accounts to export.');
         return;
     }
     let passwords;
@@ -1587,7 +1703,7 @@ async function cmdExportAccounts() {
         passwords = await (0, dpapi_1.dpapiUnprotectBatch)(records.map(r => r.passwordProtected || ''));
     }
     catch (e) {
-        vscode.window.showErrorMessage(`解密失败：${e?.message || e}`);
+        vscode.window.showErrorMessage(`Decryption failed: ${e?.message || e}`);
         (0, log_1.log)('exportAccounts: dpapi batch failed -', e?.message || e);
         return;
     }
@@ -1603,24 +1719,24 @@ async function cmdExportAccounts() {
         lines.push(`${r.email}:${pwd}`);
     }
     if (lines.length === 0) {
-        vscode.window.showWarningMessage('账号都没有密码字段，无法导出（请用「修复凭据」补充密码）。');
+        vscode.window.showWarningMessage('Accounts have no password fields, cannot export (use "Fix Credentials" to add password).');
         return;
     }
     await vscode.env.clipboard.writeText(lines.join('\n'));
-    const tail = skipped > 0 ? `（跳过 ${skipped} 个无密码账号）` : '';
+    const tail = skipped > 0 ? ` (skipped ${skipped} accounts without password)` : '';
     // Warning severity — plaintext credentials live on the OS clipboard now,
     // and on macOS / Windows can sync to other devices via cloud clipboard.
-    vscode.window.showWarningMessage(`已导出 ${lines.length} 个账号到剪贴板${tail}。⚠️ 含明文密码，使用后请复制其他内容覆盖。`);
+    vscode.window.showWarningMessage(`Exported ${lines.length} accounts to clipboard${tail}. ⚠️ Contains plaintext password, please copy something else to overwrite after use.`);
     (0, log_1.log)(`exportAccounts: ${lines.length} ok, ${skipped} skipped`);
 }
 // ---------------------------------------------------------------------------
-// Clear accounts — by category (已到期 / 免费). 用户可同时勾选两类一并清掉。
-//   · 已到期：expiresAt 已过 —— 订阅过期但未自动降级 Free 的账号
-//   · 免费：planName === 'free' —— 含试用结束后被降级的账号（plan API
-//     给这种账号一个~30 天后的 planEnd 当作下一个计费周期重置，所以
-//     仅靠 isExpired 抓不到）
-// 两类去重并集后逐个删除。当前活跃账号若在删除清单里，同步走标准
-// clearCurrentAccount 流程。
+// Clear accounts — by category (Expired / Free). Users can check both categories to clear.
+//   · Expired: expiresAt passed — subscriptions expired but not auto-downgraded to Free
+//   · Free: planName === 'free' — includes accounts downgraded after trial (plan API
+//     gives these accounts a ~30 day planEnd as next billing cycle reset, so
+//     isExpired alone can't catch them)
+// Deduplicate union of both categories then delete. If current active account
+// is in the delete list, follow standard clearCurrentAccount flow.
 // ---------------------------------------------------------------------------
 async function cmdClearExpiredAccounts(context, sidebar) {
     const accounts = await (0, accountsStore_1.loadManagerAccounts)();
@@ -1636,44 +1752,44 @@ async function cmdClearExpiredAccounts(context, sidebar) {
     const expired = accounts.filter(isExpired);
     const free = accounts.filter(isFree);
     if (expired.length === 0 && free.length === 0) {
-        vscode.window.showInformationMessage('没有可清理的账号（无已到期 · 无免费账号）。');
+        vscode.window.showInformationMessage('No accounts to clear (no expired · no free accounts).');
         return;
     }
-    // Build category options. Free 默认不勾选，避免用户故意保留的 Free 备号被误删。
+    // Build category options. Free unchecked by default to avoid deleting intentionally kept Free backup accounts.
     const items = [];
     if (expired.length > 0) {
         items.push({
-            label: '已到期账号',
-            description: `${expired.length} 个 · 订阅期 expiresAt 已过`,
+            label: 'Expired Accounts',
+            description: `${expired.length} · Subscription expiresAt passed`,
             picked: true,
             kind: 'expired'
         });
     }
     if (free.length > 0) {
         items.push({
-            label: '免费账号',
-            description: `${free.length} 个 · 含试用结束后降级`,
+            label: 'Free Accounts',
+            description: `${free.length} · Includes trial-ended downgrades`,
             picked: false,
             kind: 'free'
         });
     }
     let picked;
     if (items.length === 1) {
-        // 只有一类候选时直接进入确认流程，不要逼用户多按一次回车。
+        // Only one category candidate, go directly to confirm, don't force another Enter press.
         picked = items;
     }
     else {
         const sel = await vscode.window.showQuickPick(items, {
             canPickMany: true,
-            title: '选择要清理的账号类别',
-            placeHolder: '空格切换勾选 · 回车确认'
+            title: 'Select account categories to clear',
+            placeHolder: 'Space to toggle, Enter to confirm'
         });
         if (!sel || sel.length === 0) {
             return;
         }
         picked = sel;
     }
-    // 两类可能重叠（既到期又是 Free），按 id 去重并集。
+    // Two categories may overlap (both expired and Free), deduplicate by id.
     const targetMap = new Map();
     if (picked.some(p => p.kind === 'expired')) {
         for (const a of expired)
@@ -1688,9 +1804,9 @@ async function cmdClearExpiredAccounts(context, sidebar) {
         return;
     }
     const preview = targets.slice(0, 5).map(a => a.email).join('\n  · ');
-    const more = targets.length > 5 ? `\n  · …还有 ${targets.length - 5} 个` : '';
-    const ans = await vscode.window.showWarningMessage(`将删除 ${targets.length} 个账号：\n\n  · ${preview}${more}\n\n此操作不可撤销。`, { modal: true }, '删除');
-    if (ans !== '删除') {
+    const more = targets.length > 5 ? `\n  · ...and ${targets.length - 5} more` : '';
+    const ans = await vscode.window.showWarningMessage(`Will delete ${targets.length} accounts:\n\n  · ${preview}${more}\n\nThis action cannot be undone.`, { modal: true }, 'Delete');
+    if (ans !== 'Delete') {
         return;
     }
     let ok = 0;
@@ -1717,10 +1833,10 @@ async function cmdClearExpiredAccounts(context, sidebar) {
         await clearCurrentAccount(context, 'clearExpiredAccounts');
     }
     if (fail > 0) {
-        vscode.window.showWarningMessage(`已清理 ${ok} 个，${fail} 个失败。详情见日志。`);
+        vscode.window.showWarningMessage(`Cleared ${ok}, ${fail} failed. See logs for details.`);
     }
     else {
-        statusOk(`已清理 ${ok} 个账号`);
+        statusOk(`Cleared ${ok} accounts`);
     }
     await sidebar.reload();
 }
@@ -1746,7 +1862,7 @@ async function cmdCheckUpdate(context) {
     const repoUrl = String(context.extension.packageJSON.repository?.url || '');
     const m = repoUrl.match(/github\.com[:/]+([^/]+)\/([^/.]+)/);
     if (!m) {
-        vscode.window.showWarningMessage('无法解析 repository.url，跳过更新检查');
+        vscode.window.showWarningMessage('Cannot parse repository.url, skipping update check');
         return;
     }
     const owner = m[1];
@@ -1776,32 +1892,33 @@ async function cmdCheckUpdate(context) {
                         resolve(JSON.parse(body));
                     }
                     catch (e) {
-                        reject(new Error(`GitHub 响应解析失败：${e?.message || e}`));
+                        reject(new Error(`GitHub response parse failed: ${e?.message || e}`));
                     }
                 });
             });
             req.on('error', reject);
             req.setTimeout(10000, () => {
-                req.destroy(new Error('请求超时（10s）'));
+                req.destroy(new Error('Request timed out (10s)'));
+                req.destroy(new Error('Request timed out (10s)'));
             });
         });
         const tag = String(data?.tag_name || '').replace(/^v/, '');
         if (!tag) {
-            throw new Error('GitHub 响应缺 tag_name');
+            throw new Error('GitHub response missing tag_name');
         }
         if (compareVersions(tag, currentVersion) <= 0) {
-            vscode.window.showInformationMessage(`已是最新版本 v${currentVersion}`);
+            vscode.window.showInformationMessage(`Already on latest version v${currentVersion}`);
             return;
         }
-        const action = await vscode.window.showInformationMessage(`Windsurf Switch 发现新版本 v${tag}（当前 v${currentVersion}）`, '查看 Release', '稍后');
-        if (action === '查看 Release') {
+        const action = await vscode.window.showInformationMessage(`Windsurf Switch found new version v${tag} (current v${currentVersion})`, 'View Release', 'Later');
+        if (action === 'View Release') {
             const url = String(data?.html_url || `https://github.com/${owner}/${repo}/releases/tag/v${tag}`);
             void vscode.env.openExternal(vscode.Uri.parse(url));
         }
     }
     catch (e) {
         const msg = e?.message || String(e);
-        vscode.window.showWarningMessage(`检查更新失败：${msg}`);
+        vscode.window.showWarningMessage(`Update check failed: ${msg}`);
         (0, log_1.log)(`checkUpdate failed: ${msg}`);
     }
 }
@@ -1821,13 +1938,13 @@ function describeAccount(a) {
         parts.push(`plan: ${a.planName}`);
     }
     if (a.dailyRemainPct !== null) {
-        parts.push(`日 ${a.dailyRemainPct}%`);
+        parts.push(`D ${a.dailyRemainPct}%`);
     }
     if (a.weeklyRemainPct !== null) {
-        parts.push(`周 ${a.weeklyRemainPct}%`);
+        parts.push(`W ${a.weeklyRemainPct}%`);
     }
     if (a.remark) {
-        parts.push(`备注: ${a.remark}`);
+        parts.push(`note: ${a.remark}`);
     }
     return parts.join(' · ');
 }
@@ -1849,7 +1966,7 @@ async function runSmartSwitch(context, sidebar, opts) {
         history
     });
     if (!decision.picked) {
-        const msg = `智能切号：${decision.reason}`;
+        const msg = `Smart Switch: ${decision.reason}`;
         if (opts.trigger === 'manual') {
             vscode.window.showWarningMessage(msg);
         }
@@ -1871,8 +1988,8 @@ async function runSmartSwitch(context, sidebar, opts) {
             const newHistory = (0, smartSwitch_1.recordSwitch)(history, cand.id);
             await saveSmartHistory(context, newHistory);
             autoSwitch?.noteExternalSwitch();
-            const label = opts.trigger === 'manual' ? '智能切号' : `自动·${opts.trigger}`;
-            const msg = `[${label}] 已切到 ${cand.email} · ${decision.reason}`;
+            const label = opts.trigger === 'manual' ? 'Smart Switch' : `Auto·${opts.trigger}`;
+            const msg = `[${label}] Switched to ${cand.email} · ${decision.reason}`;
             if (opts.trigger === 'manual') {
                 statusOk(msg);
             }
@@ -1899,7 +2016,7 @@ async function runSmartSwitch(context, sidebar, opts) {
             }
         }
     }
-    const failMsg = `智能切号失败：尝试 ${tried.length} 个候选均失败（${tried.join(', ')}）`;
+    const failMsg = `Smart Switch failed: Tried ${tried.length} candidates, all failed (${tried.join(', ')})`;
     vscode.window.showErrorMessage(failMsg);
     (0, log_1.log)(failMsg);
     await sidebar.reload();
@@ -1924,14 +2041,14 @@ async function probeCurrentQuota(context) {
     await (0, accountsStore_1.applySnapshot)(id, snap);
     // Fire-and-forget reload so UI reflects the polled values.
     void sidebar?.reload();
-    // 触发阈值开关：关闭时 polling 仍然刷新数据，但不触发切号。
-    // 默认 true，向后兼容已有用户。
+    // Trigger threshold switch: when off, polling still refreshes data but doesn't trigger switch.
+    // Default true, backward compatible with existing users.
     const thresholdEnabled = context.globalState.get(autoSwitch_1.STATE_KEYS.lowQuotaThresholdEnabled, true);
     if (!thresholdEnabled) {
         return { dailyZero: false, weeklyZero: false, error: false };
     }
-    // 触发阈值：Windsurf 后端在余量降到 0% 前就开始拒请求（缓存 + 阈值保护），
-    // 等到精确归零才切已经晚。阈值用户可在 sidebar 调整，默认 10%。
+    // Trigger threshold: Windsurf backend starts rejecting requests before quota reaches 0% (cache + threshold protection),
+    // waiting for exact zero is too late. Threshold can be adjusted in sidebar, default 10%.
     const threshold = context.globalState.get(autoSwitch_1.STATE_KEYS.lowQuotaThreshold, autoSwitch_1.DEFAULT_LOW_QUOTA_THRESHOLD);
     const dailyZero = typeof snap.dailyRemainPct === 'number' && snap.dailyRemainPct < threshold;
     const weeklyZero = typeof snap.weeklyRemainPct === 'number' && snap.weeklyRemainPct < threshold;
@@ -1950,7 +2067,7 @@ async function refreshAccountQuotaSilently(context, sidebar, accountId) {
             return;
         const snap = await getPlanStatusWithRecovery(context, acc);
         await (0, accountsStore_1.applySnapshot)(accountId, snap);
-        (0, log_1.log)(`post-switch refresh: ${acc.email} d=${snap.dailyRemainPct ?? '-'}% w=${snap.weeklyRemainPct ?? '-'}%`);
+        (0, log_1.log)(`post-switch refresh: ${acc.email} D=${snap.dailyRemainPct ?? '-'}% W=${snap.weeklyRemainPct ?? '-'}%`);
     }
     catch (e) {
         (0, log_1.log)(`post-switch refresh of ${accountId} failed:`, e?.message || e);
@@ -1969,7 +2086,7 @@ async function cmdSmartSwitch(context, sidebar) {
 /**
  * Debug helper: dump everything we can learn about the current Windsurf
  * auth session to the Output channel. Invoked via the command palette
- * ("Windsurf: 诊断登录会话") when account identification is misbehaving.
+ * ("Windsurf: Diagnose Login Session") when account identification is misbehaving.
  *
  * Never prints the raw accessToken — only its first 12 characters and the
  * decoded JWT claim keys / values, redacted for long tokens.
@@ -1978,7 +2095,8 @@ async function cmdDiagnoseSession(context) {
     // Clear the diagnose-once cache so extractEmailFromSession re-logs.
     _sessionDiagnoseCache.clear();
     const lines = [];
-    lines.push('--- Windsurf session diagnose ---');
+    lines.push('--- Windsurf Session Diagnose ---');
+    ;
     lines.push(`cached currentAccountId = ${getCurrentAccountId(context) ?? '∅'}`);
     lines.push(`cached activeEmail      = ${getActiveEmail(context) ?? '∅'}`);
     const accounts = await (0, accountsStore_1.loadManagerAccounts)();
@@ -2009,27 +2127,28 @@ async function cmdDiagnoseSession(context) {
     for (const [k, v] of mapEntries) {
         lines.push(`  "${k}" → ${v}`);
     }
-    lines.push('--- end diagnose ---');
+    lines.push('--- End Diagnose ---');
     const channel = (0, log_1.getOutputChannel)();
     for (const l of lines)
         channel.appendLine(l);
     channel.show(true);
 }
 /**
- * "认领当前登录"：Windsurf 的 session 不带邮箱，所以当用户通过别的方式换号
- * 导致 label 无法对应到 accounts.json 里的账号时，这里让用户手动选一次，
- * 把 "display-name → email" 写进 sessionLabelMap。之后自动识别就能工作。
+ * "Claim Current Login": Windsurf session doesn't carry email, so when user switches
+ * accounts through other means causing label to not match accounts.json entry, let user
+ * manually select once here, writing "display-name → email" into sessionLabelMap.
+ * After that, auto-recognition will work.
  */
 async function cmdClaimCurrentSession(context, sidebar) {
     const session = await resolveActiveSession();
     if (!session) {
-        vscode.window.showWarningMessage('Windsurf 当前没有活动的登录会话。');
+        vscode.window.showWarningMessage('Windsurf currently has no active login session.');
         return;
     }
     const label = session.account?.label || session.account?.id || '';
     const accounts = sidebar.accounts.length > 0 ? sidebar.accounts : await (0, accountsStore_1.loadManagerAccounts)();
     if (accounts.length === 0) {
-        vscode.window.showWarningMessage('账号列表为空，请先导入账号。');
+        vscode.window.showWarningMessage('Account list is empty, please import accounts first.');
         return;
     }
     const items = accounts
@@ -2037,8 +2156,8 @@ async function cmdClaimCurrentSession(context, sidebar) {
         .sort((a, b) => a.email.localeCompare(b.email))
         .map(a => ({ label: a.email, description: a.remark || '', detail: a.planName || '', id: a.id }));
     const picked = await vscode.window.showQuickPick(items, {
-        title: `Windsurf 登录为 "${label}"，请选择对应的账号（会记住这个映射）`,
-        placeHolder: '输入邮箱关键字过滤，回车确认',
+        title: `Windsurf logged in as "${label}", please select matching account (will remember this mapping)`,
+        placeHolder: 'Enter email keyword to filter, Enter to confirm',
         matchOnDescription: true,
         matchOnDetail: true
     });
@@ -2049,7 +2168,7 @@ async function cmdClaimCurrentSession(context, sidebar) {
     await setCurrentAccountId(context, picked.id, 'claimCurrent');
     await setActiveEmail(context, picked.label, 'claimCurrent');
     await sidebar.reload();
-    vscode.window.showInformationMessage(`已认领：${label} → ${picked.label}`);
+    vscode.window.showInformationMessage(`Claimed: ${label} → ${picked.label}`);
     (0, log_1.log)(`claim: "${label}" → ${picked.label}`);
 }
 function dumpSession(session, tag, out) {
@@ -2073,7 +2192,7 @@ function dumpSession(session, tag, out) {
     out.push(`[${tag}] extracted email     = ${extracted ?? '(null)'}`);
 }
 /**
- * User clicked "刷新" on the current-account card.
+ * User clicked "Refresh" on the current-account card.
  * Flow:
  *   1. Re-probe Windsurf's auth session (authoritative).
  *   2. If it matches our cached id → just refresh that account's quota.
@@ -2090,13 +2209,13 @@ async function cmdRefreshCurrentSynced(context, sidebar) {
     if (!id) {
         const looksLikeEmail = !!email && /@/.test(email);
         if (looksLikeEmail) {
-            vscode.window.showWarningMessage(`当前 Windsurf 登录账号 ${email} 不在扩展账号列表里，无法刷新额度。请先导入该账号。`);
+            vscode.window.showWarningMessage(`Current Windsurf login ${email} not in extension account list, cannot refresh quota. Please import this account first.`);
         }
         else if (email) {
-            vscode.window.showWarningMessage(`Windsurf 当前登录状态尚未同步出可识别的邮箱（当前显示：${email}）。请稍后重试；若持续失败请执行「诊断登录会话（调试）」。`);
+            vscode.window.showWarningMessage(`Windsurf current login hasn't synced recognizable email (currently showing: ${email}). Please retry later; if persistent, run "Diagnose Login Session (Debug)".`);
         }
         else {
-            vscode.window.showWarningMessage('未检测到 Windsurf 当前登录会话。');
+            vscode.window.showWarningMessage('No Windsurf current login session detected.');
         }
         return;
     }
@@ -2108,15 +2227,15 @@ async function cmdSmartSwitchFromSidebar(context, sidebar, args) {
 }
 async function cmdResetSmartCooldown(context, sidebar) {
     await clearSmartHistory(context);
-    statusOk('已重置智能切号冷却');
+    statusOk('Reset smart switch cooldown');
     await sidebar.reload();
 }
 async function cmdEditLogPatterns(context) {
     const current = context.globalState.get(autoSwitch_1.STATE_KEYS.logWatchPatterns, autoSwitch_1.DEFAULT_LOG_PATTERNS);
     const raw = await vscode.window.showInputBox({
-        title: '日志监控关键词（每行 1 个正则；留空恢复默认）',
+        title: 'Log Monitor Keywords (1 regex per line; leave empty to restore default)',
         value: current.join('\n'),
-        prompt: '写入后立即生效。恢复默认留空即可。',
+        prompt: 'Takes effect immediately. Leave empty to restore defaults.',
         ignoreFocusOut: true
     });
     if (raw === undefined)
@@ -2127,7 +2246,7 @@ async function cmdEditLogPatterns(context) {
         .filter(s => s.length > 0);
     const final = next.length > 0 ? next : autoSwitch_1.DEFAULT_LOG_PATTERNS;
     await autoSwitch?.setLogWatchPatterns(final);
-    statusOk(`已更新 ${final.length} 条日志关键词`);
+    statusOk(`Updated ${final.length} log keywords`);
 }
 async function cmdToggleAuto(context, sidebar, args) {
     if (!autoSwitch)
@@ -2139,7 +2258,7 @@ async function cmdToggleAuto(context, sidebar, args) {
         await autoSwitch.setLogWatchEnabled(!!args.enabled);
     }
     else if (args?.kind === 'threshold') {
-        // 阈值开关不影响 timer，只改 globalState。probeCurrentQuota 会读它。
+        // Threshold toggle doesn't affect timer, only changes globalState. probeCurrentQuota reads it.
         await context.globalState.update(autoSwitch_1.STATE_KEYS.lowQuotaThresholdEnabled, !!args.enabled);
     }
     await sidebar.reload();
@@ -2153,8 +2272,8 @@ async function cmdSetPollingInterval(context, sidebar, args) {
     await autoSwitch.setPollingInterval(ms);
     await sidebar.reload();
 }
-// 设置自动切号触发阈值（余量百分比）。由 sidebar 输入框调用。
-// 范围 0-99，与前端 UI (input maxlength=2) 对齐。
+// Set auto switch trigger threshold (remaining quota percentage). Called by sidebar input.
+// Range 0-99, aligned with frontend UI (input maxlength=2).
 async function cmdSetLowQuotaThreshold(context, sidebar, args) {
     const v = args?.threshold;
     if (typeof v !== 'number' || v < 0 || v > 99)

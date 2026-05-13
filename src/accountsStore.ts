@@ -193,7 +193,7 @@ export async function addAccount(newAccount: Account): Promise<void> {
     return runSerializedMutation(async () => {
         const records = await loadAccountsEncrypted();
         if (records.some(r => (r.email || '').toLowerCase() === newAccount.email.toLowerCase())) {
-            throw new Error(`账号 ${newAccount.email} 已存在`);
+            throw new Error(`Account ${newAccount.email} already exists`);
         }
         const persisted = await buildPersisted(newAccount);
         records.push(persisted);
@@ -217,7 +217,7 @@ export async function updateRemark(accountId: string, remark: string): Promise<v
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
         if (!rec) {
-            throw new Error(`账号不存在: ${accountId}`);
+            throw new Error(`Account does not exist: ${accountId}`);
         }
         rec.remark = remark.trim().slice(0, 4);
         await writeAtomic(records);
@@ -229,7 +229,7 @@ export async function applySnapshot(accountId: string, snapshot: Partial<Account
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
         if (!rec) {
-            throw new Error(`账号不存在: ${accountId}`);
+            throw new Error(`Account does not exist: ${accountId}`);
         }
         rec.planName = snapshot.planName || 'Free';
         rec.dailyRemainPct = snapshot.dailyRemainPct;
@@ -307,7 +307,7 @@ export async function applyAuth1Tokens(accountId, sessionToken, auth1Token, expi
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
         if (!rec) {
-            throw new Error(`账号不存在: ${accountId}`);
+            throw new Error(`Account does not exist: ${accountId}`);
         }
         const [idProt, authProt] = await (0, dpapi_1.dpapiProtectBatch)([sessionToken || '', auth1Token || '']);
         if (sessionToken) {
@@ -336,7 +336,7 @@ export async function applyLoginTokens(accountId, idToken, refreshToken, expires
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
         if (!rec) {
-            throw new Error(`账号不存在: ${accountId}`);
+            throw new Error(`Account does not exist: ${accountId}`);
         }
         const inputs = [idToken || '', refreshToken || '', password ?? '', auth1Token || ''];
         const [idProt, rtProt, pwdProt, authProt] = await (0, dpapi_1.dpapiProtectBatch)(inputs);

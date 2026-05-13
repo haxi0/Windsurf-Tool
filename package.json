@@ -1,7 +1,7 @@
 {
   "name": "windsurf-switch",
   "displayName": "Windsurf Switch",
-  "description": "Windsurf 多账号无感切换 — 卡片化 sidebar、不弹浏览器静默换号、跨窗口同步、一键打补丁；账号库与桌面版 windsurf-manager-desktop 共享。Windows / macOS / Linux 通用。",
+  "description": "Windsurf Multi-Account Seamless Switch — Card-based sidebar, silent account switching without browser popups, cross-window sync, one-click patching; shares account library with desktop version windsurf-manager-desktop. Windows / macOS / Linux compatible.",
   "version": "1.2.2",
   "publisher": "lango",
   "engines": {
@@ -42,178 +42,183 @@
     "commands": [
       {
         "command": "windsurfSwitch.switchAccount",
-        "title": "切换账号 (QuickPick)",
+        "title": "Switch Account (QuickPick)",
         "category": "Windsurf Switch",
         "icon": "$(arrow-swap)"
       },
       {
         "command": "windsurfSwitch.switchAccountById",
-        "title": "切到指定账号",
+        "title": "Switch to Specific Account",
         "category": "Windsurf Switch",
         "enablement": "false"
       },
       {
         "command": "windsurfSwitch.switchByIdToken",
-        "title": "用 IdToken 切号 (调试)",
+        "title": "Switch with IdToken (Debug)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch.addAccount",
-        "title": "添加账号",
+        "title": "Add Account",
         "category": "Windsurf Switch",
         "icon": "$(add)"
       },
       {
+        "command": "windsurfSwitch.addAccountGitHub",
+        "title": "Add Account (Continue with GitHub)",
+        "category": "Windsurf Switch"
+      },
+      {
         "command": "windsurfSwitch.batchImport",
-        "title": "批量导入",
+        "title": "Batch Import",
         "category": "Windsurf Switch",
         "icon": "$(cloud-upload)"
       },
       {
         "command": "windsurfSwitch.deleteAccountById",
-        "title": "删除账号 (by id)",
+        "title": "Delete Account (by id)",
         "category": "Windsurf Switch",
         "enablement": "false"
       },
       {
         "command": "windsurfSwitch.editRemarkById",
-        "title": "编辑备注 (by id)",
+        "title": "Edit Remark (by id)",
         "category": "Windsurf Switch",
         "enablement": "false"
       },
       {
         "command": "windsurfSwitch.showCredentials",
-        "title": "查看账号凭据 (by id)",
+        "title": "View Account Credentials (by id)",
         "category": "Windsurf Switch",
         "enablement": "false"
       },
       {
         "command": "windsurfSwitch.refreshAccount",
-        "title": "刷新 Plan / Quota (by id)",
+        "title": "Refresh Plan / Quota (by id)",
         "category": "Windsurf Switch",
         "enablement": "false"
       },
       {
         "command": "windsurfSwitch.fixCredentialsById",
-        "title": "修复凭据 (by id)",
+        "title": "Fix Credentials (by id)",
         "category": "Windsurf Switch",
         "enablement": "false"
       },
       {
         "command": "windsurfSwitch.refreshAll",
-        "title": "批量刷新",
+        "title": "Batch Refresh",
         "category": "Windsurf Switch",
         "icon": "$(sync)"
       },
       {
         "command": "windsurfSwitch.reloadSidebar",
-        "title": "重新加载账号列表",
+        "title": "Reload Account List",
         "category": "Windsurf Switch",
         "icon": "$(refresh)"
       },
       {
         "command": "windsurfSwitch.openAccountsFile",
-        "title": "打开 accounts.json 目录",
+        "title": "Open accounts.json Directory",
         "category": "Windsurf Switch",
         "icon": "$(folder)"
       },
       {
         "command": "windsurfSwitch.listAccounts",
-        "title": "账号列表 (Output)",
+        "title": "Account List (Output)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch.exportAccounts",
-        "title": "导出全部账号到剪贴板",
+        "title": "Export All Accounts to Clipboard",
         "category": "Windsurf Switch",
         "icon": "$(clippy)"
       },
       {
         "command": "windsurfSwitch.clearExpiredAccounts",
-        "title": "清理账号（已到期 / 免费）",
+        "title": "Clear Accounts (Expired / Free)",
         "category": "Windsurf Switch",
         "icon": "$(trash)"
       },
       {
         "command": "windsurfSwitch.checkUpdate",
-        "title": "检查更新",
+        "title": "Check for Updates",
         "category": "Windsurf Switch",
         "icon": "$(cloud-download)"
       },
       {
         "command": "windsurfSwitch.showOutput",
-        "title": "显示日志",
+        "title": "Show Logs",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch.smartSwitch",
-        "title": "智能切号",
+        "title": "Smart Switch",
         "category": "Windsurf Switch",
         "icon": "$(rocket)"
       },
       {
         "command": "windsurfSwitch.resetSmartCooldown",
-        "title": "重置智能切号冷却",
+        "title": "Reset Smart Switch Cooldown",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch.diagnoseSession",
-        "title": "诊断登录会话（调试）",
+        "title": "Diagnose Login Session (Debug)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch.editLogPatterns",
-        "title": "编辑日志监控关键词",
+        "title": "Edit Log Monitor Keywords",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch.patchWindsurf",
-        "title": "给 Windsurf 打补丁（启用无浏览器切号）",
+        "title": "Patch Windsurf (Enable No-Browser Switching)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch.unpatchWindsurf",
-        "title": "恢复 Windsurf（卸载补丁）",
+        "title": "Restore Windsurf (Uninstall Patch)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch.checkPatchStatus",
-        "title": "查看 Windsurf 补丁状态",
+        "title": "Check Windsurf Patch Status",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch._refreshCurrentSynced",
-        "title": "内部：刷新当前同步账号（供 webview 调用）",
+        "title": "Internal: Refresh Current Synced Account (for webview)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch._setPollingInterval",
-        "title": "内部：设置轮询间隔（供 webview 调用）",
+        "title": "Internal: Set Polling Interval (for webview)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch._smartSwitchFromSidebar",
-        "title": "内部：从侧栏触发智能切号（供 webview 调用）",
+        "title": "Internal: Trigger Smart Switch from Sidebar (for webview)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch._submitAddFromModal",
-        "title": "内部：提交新增账号表单（供 webview 调用）",
+        "title": "Internal: Submit Add Account Form (for webview)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch._submitBatchFromModal",
-        "title": "内部：提交批量导入表单（供 webview 调用）",
+        "title": "Internal: Submit Batch Import Form (for webview)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch._toggleAuto",
-        "title": "内部：切换自动切号开关（供 webview 调用）",
+        "title": "Internal: Toggle Auto Switch (for webview)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch._setLowQuotaThreshold",
-        "title": "内部：设置自动切号触发阈值（供 webview 调用）",
+        "title": "Internal: Set Auto Switch Threshold (for webview)",
         "category": "Windsurf Switch"
       }
     ],

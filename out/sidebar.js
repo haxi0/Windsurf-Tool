@@ -74,7 +74,7 @@ class SidebarProvider {
          * resyncs don't re-render the UI when nothing actually changed.
          */
         this._lastPostedJson = null;
-        // 并发/重复调用只触发一次真正的 disk read，降低批量操作里的抖动。
+        // Concurrent/duplicate calls only trigger one actual disk read, reducing jitter in batch operations.
         this._reloadInFlight = null;
         this.ctx = ctx;
     }
@@ -115,7 +115,7 @@ class SidebarProvider {
         catch (e) {
             (0, log_1.log)('resolveWebviewView failed:', e?.stack || e?.message || e);
             webviewView.webview.html = `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:16px;color:#f14c4c">
-                <h3>Windsurf Switch 启动失败</h3>
+                <h3>Windsurf Switch Launch Failed</h3>
                 <pre style="white-space:pre-wrap">${escapeHtml(String(e?.stack || e?.message || e))}</pre>
             </body></html>`;
         }
@@ -263,6 +263,10 @@ class SidebarProvider {
                 // Kept for palette compatibility; sidebar toolbar opens modal locally.
                 void vscode.commands.executeCommand('windsurfSwitch.addAccount');
                 return;
+            case 'addAccountGitHub':
+                this.postModalClose();
+                void vscode.commands.executeCommand('windsurfSwitch.addAccountGitHub');
+                return;
             case 'batchImport':
                 void vscode.commands.executeCommand('windsurfSwitch.batchImport');
                 return;
@@ -306,7 +310,7 @@ class SidebarProvider {
                 }
                 return;
             case 'credentials':
-                // 直接复制「账号+密码」。旧的 showCredentials 弹框仍可通过命令面板调用。
+                // Direct copy "Account+Password". Old showCredentials popup can still be called via command palette.
                 if (msg.id) {
                     void this.copyCredentialToClipboard({
                         id: String(msg.id),
@@ -425,7 +429,7 @@ class SidebarProvider {
             else {
                 const loaded = await (0, accountsStore_1.loadAccountWithSecrets)(accountId);
                 if (!loaded) {
-                    this.postStatus('无法读取该账号', 'error');
+                    this.postStatus('Cannot read this account', 'error');
                     return;
                 }
                 email = loaded.email;
@@ -433,37 +437,37 @@ class SidebarProvider {
             }
             if (field === 'email') {
                 if (!email) {
-                    this.postStatus('账号邮箱为空', 'warn');
+                    this.postStatus('Account email is empty', 'warn');
                     return;
                 }
                 await vscode.env.clipboard.writeText(email);
-                this.postStatus(`已复制邮箱 ${email}`, 'success');
+                this.postStatus(`Copied email ${email}`, 'success');
                 return;
             }
             if (field === 'password') {
                 if (!password) {
-                    this.postStatus('该账号没有存储密码', 'warn');
+                    this.postStatus('This account has no stored password', 'warn');
                     return;
                 }
                 await vscode.env.clipboard.writeText(password);
-                this.postStatus('已复制密码（请尽快粘贴并清空剪贴板）', 'success');
+                this.postStatus('Copied password (please paste and clear clipboard soon)', 'success');
                 return;
             }
             if (field === 'both') {
                 if (!password) {
-                    this.postStatus('该账号没有存储密码', 'warn');
+                    this.postStatus('This account has no stored password', 'warn');
                     return;
                 }
-                const text = `账号: ${email}    密码: ${password}`;
+                const text = `Account: ${email}    Password: ${password}`;
                 await vscode.env.clipboard.writeText(text);
-                this.postStatus('已复制 账号+密码', 'success');
+                this.postStatus('Copied Account+Password', 'success');
                 return;
             }
-            this.postStatus(`未知字段: ${field}`, 'error');
+            this.postStatus(`Unknown field: ${field}`, 'error');
         }
         catch (e) {
             (0, log_1.log)('copyCredentialToClipboard failed:', e?.message || e);
-            this.postStatus(`复制失败: ${e?.message || e}`, 'error');
+            this.postStatus(`Copy failed: ${e?.message || e}`, 'error');
         }
     }
     getHtml(webview) {
@@ -487,28 +491,28 @@ class SidebarProvider {
     <div id="status-bar" class="status" hidden></div>
 
     <div class="toolbar">
-        <!-- 工具栏三个按钮改为 icon-only：+ 添加 / 下载导入 / 刷新。tooltip 通过 data-tip 挂在按钮下方。 -->
-        <button class="btn-primary act" data-cmd="addAccount" data-tip="添加账号">
+        <!-- Toolbar three buttons changed to icon-only: + Add / Download Import / Refresh. Tooltips via data-tip below buttons. -->
+        <button class="btn-primary act" data-cmd="addAccount" data-tip="Add Account">
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M3 8h10"/></svg>
         </button>
-        <button class="btn act" data-cmd="batchImport" data-tip="批量导入">
+        <button class="btn act" data-cmd="batchImport" data-tip="Batch Import">
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8.5M4.5 7 8 10.5 11.5 7M2.5 13.5h11"/></svg>
         </button>
-        <button class="btn act" data-cmd="exportAccounts" data-tip="导出全部账号到剪贴板">
+        <button class="btn act" data-cmd="exportAccounts" data-tip="Export All Accounts to Clipboard">
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13.5V5M4.5 8.5 8 5l3.5 3.5M2.5 2.5h11"/></svg>
         </button>
-        <button class="btn act" data-cmd="refreshAll" data-tip="刷新全部 Plan / Quota">
+        <button class="btn act" data-cmd="refreshAll" data-tip="Refresh All Plan / Quota">
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg>
         </button>
-        <!-- 自动切号入口：外层 .dropdown 保留，但触发器使用 .btn 类与 toolbar 其他按钮保持一致视觉。
-             .dropdown-trigger 类仍然保留以让通用 click handler 接管弹层；外观由更高特异性的 .toolbar .btn.dropdown-trigger 规则接管。
-             margin-left: auto 把它推到最右。 -->
+        <!-- Auto Switch entry: outer .dropdown kept, but trigger uses .btn class for consistent visual with other toolbar buttons.
+             .dropdown-trigger class retained for generic click handler to manage popup; appearance controlled by more specific .toolbar .btn.dropdown-trigger rule.
+             margin-left: auto pushes it to the right. -->
         <div class="dropdown" data-dd="auto">
-            <button class="btn dropdown-trigger" type="button" data-dd-trigger="auto" title="自动切号设置">
+            <button class="btn dropdown-trigger" type="button" data-dd-trigger="auto" title="Auto Switch Settings">
                 <span class="ico auto-ico" aria-hidden="true">
                     <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor"><path d="M9 1.5 3 9h4l-1 5.5L13 7H9z"/></svg>
                 </span>
-                <span>自动切号</span>
+                <span>Auto Switch</span>
                 <span class="auto-dot" id="auto-dot" hidden></span>
             </button>
             <div class="dropdown-menu auto-menu" id="auto-menu" hidden>
@@ -517,7 +521,7 @@ class SidebarProvider {
         </div>
     </div>
 
-    <div class="section-label">当前账号</div>
+    <div class="section-label">Current Account</div>
     <div id="current-account"></div>
 
     <div class="list-header">
@@ -528,12 +532,12 @@ class SidebarProvider {
                     <span class="dropdown-ico">
                         <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v10M4 3l-2 2M4 3l2 2M11 13V3M11 13l-2-2M11 13l2-2"/></svg>
                     </span>
-                    <span class="dropdown-label" id="sort-label">按到期时间 ↑</span>
+                    <span class="dropdown-label" id="sort-label">By Expiry ↑</span>
                     <span class="dropdown-caret">▾</span>
                 </button>
                 <div class="dropdown-menu" id="sort-menu" hidden>
-                    <button class="dropdown-option" type="button" data-sort="expiry">按到期时间</button>
-                    <button class="dropdown-option" type="button" data-sort="quota">按可用额度</button>
+                    <button class="dropdown-option" type="button" data-sort="expiry">By Expiry</button>
+                    <button class="dropdown-option" type="button" data-sort="quota">By Quota</button>
                 </div>
             </div>
             <div class="dropdown" data-dd="filter">
@@ -541,13 +545,13 @@ class SidebarProvider {
                     <span class="dropdown-ico">
                         <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-4.5 6v4l-3 1v-5z"/></svg>
                     </span>
-                    <span class="dropdown-label" id="filter-label">筛选</span>
+                    <span class="dropdown-label" id="filter-label">Filter</span>
                     <span class="dropdown-caret">▾</span>
                 </button>
                 <div class="dropdown-menu" id="filter-menu" hidden>
-                    <label class="dropdown-check"><input type="checkbox" data-filter="trial"/><span>Trial 账号</span></label>
-                    <label class="dropdown-check"><input type="checkbox" data-filter="exclude-no-quota"/><span>除无额度账号</span></label>
-                    <label class="dropdown-check"><input type="checkbox" data-filter="exclude-today-unavailable"/><span>除今日不可用</span></label>
+                    <label class="dropdown-check"><input type="checkbox" data-filter="trial"/><span>Trial Accounts</span></label>
+                    <label class="dropdown-check"><input type="checkbox" data-filter="exclude-no-quota"/><span>Exclude No Quota</span></label>
+                    <label class="dropdown-check"><input type="checkbox" data-filter="exclude-today-unavailable"/><span>Exclude Today Unavailable</span></label>
                 </div>
             </div>
         </div>
@@ -557,72 +561,73 @@ class SidebarProvider {
 
     <div id="modal-overlay" class="modal-overlay" hidden>
         <div class="modal-card" id="modal-add" hidden>
-            <div class="modal-title">添加账号</div>
+            <div class="modal-title">Add Account</div>
             <div class="modal-field">
-                <label for="modal-add-email">邮箱</label>
+                <label for="modal-add-email">Email</label>
                 <input id="modal-add-email" type="email" autocomplete="off" spellcheck="false" />
             </div>
             <div class="modal-field">
-                <label for="modal-add-password">密码</label>
+                <label for="modal-add-password">Password</label>
                 <input id="modal-add-password" type="password" autocomplete="off" spellcheck="false" />
             </div>
             <div class="modal-error" id="modal-add-error" hidden></div>
             <div class="modal-actions">
-                <button class="btn" data-modal-cancel type="button">取消</button>
-                <button class="btn-primary" id="modal-add-submit" type="button">添加</button>
+                <button class="btn" data-modal-cancel type="button">Cancel</button>
+                <button class="btn-primary" id="modal-add-submit" type="button">Add</button>
             </div>
+            <div class="modal-divider"><span>or</span></div>
+            <button class="btn-github" id="modal-add-github" type="button">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                Continue with GitHub
+            </button>
         </div>
         <div class="modal-card" id="modal-creds" hidden>
-            <div class="modal-title">账号凭据 · <span id="modal-creds-email"></span></div>
+            <div class="modal-title">Account Credentials · <span id="modal-creds-email"></span></div>
             <div class="modal-creds-actions">
-                <button class="btn" data-creds-copy="email" type="button">复制邮箱</button>
-                <button class="btn" data-creds-copy="password" type="button">复制密码</button>
-                <button class="btn-primary" data-creds-copy="both" type="button">复制 账号:xxx 密码:yyy</button>
-                <button class="btn" data-creds-copy="remark" type="button">编辑备注</button>
+                <button class="btn" data-creds-copy="email" type="button">Copy Email</button>
+                <button class="btn" data-creds-copy="password" type="button">Copy Password</button>
+                <button class="btn-primary" data-creds-copy="both" type="button">Copy Account:xxx Password:yyy</button>
+                <button class="btn" data-creds-copy="remark" type="button">Edit Remark</button>
             </div>
-            <div class="modal-hint" id="modal-creds-hint">点击按钮后内容将复制到剪贴板。</div>
+            <div class="modal-hint" id="modal-creds-hint">Click button to copy content to clipboard.</div>
             <div class="modal-actions">
-                <button class="btn" data-modal-cancel type="button">关闭</button>
+                <button class="btn" data-modal-cancel type="button">Close</button>
             </div>
         </div>
         <div class="modal-card" id="modal-batch" hidden>
-            <div class="modal-title">批量导入</div>
+            <div class="modal-title">Batch Import</div>
             <div class="modal-hint">
-                每行 1 条账号，以下任一格式均可识别，也可以混合使用：
+                One account per line, any of the following formats are recognized, and can be mixed:
 
                 <div class="modal-format-group">
-                    <div class="modal-format-title">① 分隔符式</div>
-                    <div class="modal-format-desc">邮箱和密码之间用以下任一分隔： <code>:</code> <code>,</code> <code>|</code> <code>;</code> <code>----</code> <code>@@</code> 或 空格 / Tab</div>
-                    <pre class="modal-format-example">alice@example.com:Pass123
+                    <div class="modal-format-title">① Delimiter format</div>
+                    <div class="modal-format-desc">Email and password separated by any of the following: <code>:</code> <code>,</code> <code>|</code> <code>;</code> <code>----</code> <code>@@</code> or space / Tab</div>
+                    <pre class="modal-format-example">user@example.com:Pass123
 bob@mail.com  Qwerty456
 carol@foo.io|MyP@ss</pre>
                 </div>
 
                 <div class="modal-format-group">
-                    <div class="modal-format-title">② 标签式（中英冒号皆可，可单行可多行）</div>
-                    <div class="modal-format-desc">"账号 / 邮箱" 与 "密码" 作为字段名；两者同行用空格/逗号分隔也可识别。</div>
-                    <pre class="modal-format-example">邮箱: dave@x.com
-密码: 88Dave88
-
-账号: eve@x.com    密码: EvEeve
-账号: frank@y.com, 密码: fR4NK</pre>
-                    <div class="modal-format-desc" style="margin-top:4px;">点账号卡 🔑 复制出来就是这个单行格式，可以直接粘进来。</div>
-                </div>
+                    <div class="modal-format-title">② Tag format (Chinese/English colon, single/multi-line)</div>
+                    <div class="modal-format-desc">"Account / Email" and "Password" as field names; same line separated by space/comma also recognized.</div>
+                    <pre class="modal-format-example">Email: dave@x.com
+Password: 88Dave88
+                                    </div>
 
                 <div class="modal-format-group">
-                    <div class="modal-format-title">③ 结构化（CSV / URL 参数 / JSON）</div>
+                    <div class="modal-format-title">③ Structured (CSV / URL params / JSON)</div>
                     <pre class="modal-format-example">email,password
 email=dave@x.com&amp;password=88Dave88
 [{"email":"a@x.com","password":"p"}]</pre>
                 </div>
 
-                <div class="modal-format-hint-tail">粘贴后下方会显示「已识别 N 个账号」，确认无误再点开始导入。重复邮箱会被自动跳过。</div>
+                <div class="modal-format-hint-tail">After pasting, "Found N accounts" will show below. Verify before clicking Import. Duplicate emails will be skipped.</div>
             </div>
-            <textarea id="modal-batch-text" rows="10" spellcheck="false" placeholder="粘贴账号列表..."></textarea>
-            <div class="modal-preview" id="modal-batch-preview">已识别 0 个账号</div>
+            <textarea id="modal-batch-text" rows="10" spellcheck="false" placeholder="Paste account list..."></textarea>
+            <div class="modal-preview" id="modal-batch-preview">Found 0 accounts</div>
             <div class="modal-actions">
-                <button class="btn" data-modal-cancel type="button">取消</button>
-                <button class="btn-primary" id="modal-batch-submit" type="button" disabled>开始导入</button>
+                <button class="btn" data-modal-cancel type="button">Cancel</button>
+                <button class="btn-primary" id="modal-batch-submit" type="button" disabled>Start Import</button>
             </div>
         </div>
     </div>
@@ -739,19 +744,19 @@ body {
 .toolbar {
   display: flex;
   gap: var(--sp-1);
-  flex-wrap: nowrap; /* 所有按钮常驻一行，空间不够时让文字收缩而不是换行 */
+  flex-wrap: nowrap; /* All buttons stay on one line, text shrinks rather than wraps when space is tight */
   align-items: center;
   padding: 2px 0 var(--sp-2) 0;
   border-bottom: 1px solid var(--card-border);
-  position: relative; /* 授予局部 stacking，注意不能加 overflow: hidden，
-                         否则 .dropdown-menu 弹出时会被裁掉。按钮自己的
-                         overflow: hidden 已负责文字省略号。 */
-  z-index: 5; /* 确保 dropdown 弹层在下面的 #current-account 卡片之上 */
+  position: relative; /* Grant local stacking, don't add overflow: hidden,
+                         otherwise .dropdown-menu will be clipped when opened. Button's own
+                         overflow: hidden handles text ellipsis. */
+  z-index: 5; /* Ensure dropdown popup stays above #current-account card below */
 }
 
-/* Toolbar 内按钮自适应：
-   - 普通 .btn / .btn-primary：需要时会被挤缩（文字以省略号结尾）。
-   - 自动切号按钮：不被挤缩， margin-left: auto 将其推到最右。*/
+/* Toolbar button adaptation:
+   - Regular .btn / .btn-primary: shrink when needed (text ellipsis).
+   - Auto switch button: not shrunk, margin-left: auto pushes it to the right. */
 .toolbar > .btn,
 .toolbar > .btn-primary {
   flex: 0 1 auto;
@@ -760,8 +765,8 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* icon-only (.act) 按钮必须 overflow: visible，否则 ::after 伪元素（tooltip）
-   会被按钮自身的 overflow: hidden 裁掉，看不到悬停提示。*/
+/* icon-only (.act) buttons must have overflow: visible, otherwise ::after pseudo-element (tooltip)
+   will be clipped by button's own overflow: hidden, hiding hover hints. */
 .toolbar > .btn.act,
 .toolbar > .btn-primary.act {
   overflow: visible;
@@ -770,7 +775,7 @@ body {
   flex: 0 0 auto;
   margin-left: auto;
 }
-/* Toolbar 里图标按钮的 tooltip 改显在按钮下方（按钮在顶部，上方没空间） */
+/* Toolbar icon button tooltips show below buttons (buttons at top, no space above) */
 .toolbar .act[data-tip]::after {
   bottom: auto;
   top: calc(100% + 6px);
@@ -779,7 +784,7 @@ body {
 .toolbar .act[data-tip]:hover::after {
   transform: translateX(-50%) translateY(0);
 }
-/* 第一个按钮的 tooltip 左对齐（避免被 sidebar 左边界裁掉） */
+/* First button tooltip left-aligned (avoid being clipped by sidebar left edge) */
 .toolbar .act[data-tip]:first-child::after {
   left: 0;
   transform: translateY(-2px);
@@ -787,7 +792,7 @@ body {
 .toolbar .act[data-tip]:first-child:hover::after {
   transform: translateY(0);
 }
-/* 弹层打开时提高 z-index，确保浮在所有卡片之上 */
+/* Raise z-index when popup opens, ensure it floats above all cards */
 .toolbar > .dropdown.open {
   z-index: 60;
 }
@@ -1028,7 +1033,7 @@ body {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-/* "距下次重置" 行，与 progress bar 左缘对齐（跳过 label 列 + gap） */
+/* "Time to next reset" row, aligned with progress bar left edge (skip label column + gap) */
 .quota-reset {
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -1305,6 +1310,46 @@ body {
   background: color-mix(in srgb, var(--danger) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
 }
+.modal-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin: var(--sp-1) 0 calc(var(--sp-1) - 2px);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.modal-divider::before,
+.modal-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--card-border);
+}
+.btn-github {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 12px;
+  font-size: var(--fs-md);
+  font-family: inherit;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--card-border);
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
+}
+.btn-github:hover {
+  background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
+  border-color: color-mix(in srgb, var(--vscode-foreground) 30%, transparent);
+  transform: translateY(-1px);
+}
+.btn-github:active { transform: translateY(0); }
+.btn-github:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
 .modal-hint {
   font-size: var(--fs-sm);
   color: var(--muted);
@@ -1432,13 +1477,8 @@ body {
 #current-account .card.placeholder {
   opacity: 0.7;
   background: var(--card-bg);
-  border-style: dashed;
-  border-color: var(--card-border);
-}
-
-/* ===========================================================================
- * Auto-switch — 面板内容的 row / label / select / 小提示样式。
- * 面板自己的外容器 (.auto-menu) 在下面 Toolbar dropdown 小节里。
+ /* Auto-switch — panel content row / label / select / hint styles.
+ * Panel outer container (.auto-menu) in Toolbar dropdown section below.
  * ========================================================================= */
 .auto-row {
   display: flex;
@@ -1475,7 +1515,7 @@ body {
   padding-left: 18px;
   opacity: 0.85;
 }
-/* 自动切号 dropdown 面板：宽度足够容下最长 label（"监听日志即时切号"8 字）+ select */
+/* Auto switch dropdown panel: wide enough for longest label ("Monitor logs for instant switch" ~24 chars) + select */
 .auto-menu {
   min-width: 230px;
   max-width: 280px;
@@ -1483,10 +1523,10 @@ body {
 }
 .auto-menu .auto-row {
   padding: 4px 6px;
-  flex-wrap: nowrap; /* 确保 checkbox + label + select 一行排下 */
+  flex-wrap: nowrap; /* Ensure checkbox + label + select fit on one line */
   gap: 8px;
 }
-/* label 自适应宽度，但内部文字绝不换行 */
+/* Label adaptive width, but text never wraps */
 .auto-menu .auto-row label {
   flex: 1 1 auto;
   min-width: 0;
@@ -1497,12 +1537,12 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* select 固定宽度，防止它按内容变宽压缩 label */
+/* Select fixed width, prevents expanding with content and compressing label */
 .auto-menu .auto-row select {
   flex: 0 0 auto;
   width: 82px;
 }
-/* 阈值数字输入框 + % 后缀的组合容器，整体宽度和其他 select 对齐 */
+/* Threshold number input + % suffix combo container, same width as other selects */
 .auto-menu .auto-row .threshold-input {
   flex: 0 0 auto;
   width: 82px;
@@ -1542,10 +1582,10 @@ body {
   pointer-events: none;
 }
 
-/* ---- Toolbar里的 .btn.dropdown-trigger —— 执行 .btn 实色样式，而非 chip outline --- */
-/* 用更高特异性覆盖 .dropdown-trigger 的默认样式，让 toolbar 按钮家族度统一。 */
+/* ---- Toolbar .btn.dropdown-trigger —— apply .btn solid style, not chip outline --- */
+/* Override .dropdown-trigger default with higher specificity for toolbar button consistency. */
 .toolbar .btn.dropdown-trigger {
-  /* 重置为 .btn 样式（与「批量导入」「刷新全部」完全一样） */
+  /* Reset to .btn style (same as "Batch Import" "Refresh All") */
   background: var(--neutral-bg);
   color: var(--neutral-fg);
   border: 1px solid transparent;
@@ -1565,16 +1605,16 @@ body {
 .toolbar .btn.dropdown-trigger:active {
   transform: translateY(1px);
 }
-/* 打开面板时 —— 类似 "鼠标悬停" 的往下压感 */
+/* When panel opens —— "hover" pressed down feel */
 .toolbar .dropdown.open .btn.dropdown-trigger {
   background: var(--neutral-hover);
   border-color: transparent;
 }
-/* 启用状态 —— 图标变 accent 色，文字和按钮视觉保持中性（不抟眼） */
+/* Active state —— icon turns accent color, text and button stay neutral (not flashy) */
 .toolbar .btn.dropdown-trigger.active .auto-ico {
   color: var(--accent);
 }
-/* 左边图标固定样式 */
+/* Left icon fixed style */
 .auto-ico {
   display: inline-flex;
   align-items: center;
@@ -1582,7 +1622,7 @@ body {
   opacity: 0.9;
   transition: color var(--dur-fast) var(--ease);
 }
-/* 后缀小圆点：表示「有自动切号开关开启中」。不用数字徽章，更低调。 */
+/* Suffix dot: indicates "auto switch is on". No number badge, more subtle. */
 .auto-dot {
   display: inline-block;
   width: 6px;
@@ -1802,7 +1842,7 @@ const JS = /* javascript */ `
     const statusEl = $('#status-bar');
     const currentEl = $('#current-account');
 
-    /** Set when the user clicks "刷新" on a specific card, so the next render
+    /** Set when the user clicks "Refresh" on a specific card, so the next render
      *  scrolls that card back into view.  Other renders simply restore the
      *  previous scrollTop (no jump-to-top behaviour).
      */
@@ -1817,25 +1857,25 @@ const JS = /* javascript */ `
     }
 
     // ---------- classification helpers ------------------------------------
-    // yahoo.com / yahoo.co.jp / yahoo.com.tw / yahoo.co.uk 等全部算雅虎
+    // yahoo.com / yahoo.co.jp / yahoo.com.tw / yahoo.co.uk etc. all count as Yahoo
     function isYahoo(a) { return /@yahoo\.[a-z.]+$/i.test(a.email || ''); }
     function isFree(a) { return (a.planName || '').toLowerCase() === 'free'; }
     function isTrial(a) { return (a.planName || '').toLowerCase() === 'trial'; }
     function hasDailyQuota(a) { return (a.dailyRemainPct || 0) > 0; }
     function hasWeeklyQuota(a) { return (a.weeklyRemainPct || 0) > 0; }
     function parseExpiry(a) {
-        // Free 账号没有真正的订阅到期 —— Windsurf plan API 对 Free 返回的
-        // planEnd 实际是下一个月度计费周期重置（~30 天后），原样当作
-        // 「到期时间」会误显示为「30 天后到期」。试用结束降级到 Free 时
-        // 这个 bug 最明显。统一返回 null：排序时沉底，fmtExpiry 走专门
-        // 的「免费版」分支。Trial / Pro / Teams 不受影响。
+        // Free accounts have no real subscription expiry —— Windsurf plan API returns
+        // planEnd as next monthly billing cycle reset (~30 days later), treating it as
+        // "expiry time" would wrongly show "expires in 30 days". Most obvious when
+        // trial ends and downgrades to Free. Always return null: sinks in sorting,
+        // fmtExpiry goes to dedicated "Free" branch. Trial / Pro / Teams unaffected.
         if (isFree(a)) return null;
         if (!a.expiresAt) return null;
         const t = Date.parse(a.expiresAt);
         return Number.isFinite(t) ? t : null;
     }
     function isGracePeriod(a) {
-        // 优先看后端直接给的 gracePeriodStatus，没有再用日期推算。
+        // Priority to backend gracePeriodStatus, fallback to date calculation.
         const s = (a.gracePeriodStatus || '').toLowerCase();
         if (s && s !== 'none' && s !== 'inactive' && s !== 'n/a') {
             return true;
@@ -1843,7 +1883,7 @@ const JS = /* javascript */ `
         const exp = parseExpiry(a);
         if (!exp) return false;
         if (exp - Date.now() > 0) return false;
-        // fallback：已过期 < 30 天 当宽限期
+        // fallback: expired < 30 days counted as grace period
         return (Date.now() - exp) < 30 * 24 * 3600e3;
     }
     // ---------- quota score ------------------------------------------------
@@ -1851,8 +1891,8 @@ const JS = /* javascript */ `
     //   - daily == 0 → today unusable
     //   - weekly == 0 → whole week locked
     //   - So "usable today" = min(daily, weekly).
-    // 查询失败时 (quotaError=true) 仍使用历史数据，UI 靠「未同步」徽章提示。
-    // 只有从未查询过的账号（两字段均为 null）才 -1 沉底。
+    // When query fails (quotaError=true) still use historical data, UI shows "not synced" badge.
+    // Only accounts never queried (both fields null) get -1 to sink.
     function quotaScore(a) {
         if (a.dailyRemainPct == null && a.weeklyRemainPct == null) return -1;
         return Math.min(a.dailyRemainPct || 0, a.weeklyRemainPct || 0);
@@ -1861,10 +1901,10 @@ const JS = /* javascript */ `
     // ---------- filter / sort ---------------------------------------------
     function passesFilter(a) {
         const f = state.filters;
-        // Trial 是唯一保留的 include chip
+        // Trial is the only remaining include chip
         if (f.trial && !isTrial(a)) return false;
-        // 从未查询过的账号 (daily & weekly 均 null) 不参与额度类排除，
-        // 避免新导入 / 刚创建的账号被误筛。
+        // Never-queried accounts (daily & weekly both null) not excluded by quota filters,
+        // prevents newly imported / created accounts from being wrongly filtered.
         const neverQueried = a.dailyRemainPct == null && a.weeklyRemainPct == null;
         if (f['exclude-yahoo'] && isYahoo(a)) return false;
         if (f['exclude-no-quota'] && !neverQueried && !hasWeeklyQuota(a)) return false;
@@ -1883,13 +1923,13 @@ const JS = /* javascript */ `
                 return d ? d * mult : byEmail(a, b);
             });
         }
-        // default: expiry — 到期未知的账号始终沉底（不论 asc / desc）。
+        // default: expiry — accounts with unknown expiry always sink (asc or desc).
         return list.slice().sort((a, b) => {
             const ea = parseExpiry(a);
             const eb = parseExpiry(b);
             if (ea == null && eb == null) return byEmail(a, b);
-            if (ea == null) return 1;   // a 沉底
-            if (eb == null) return -1;  // b 沉底
+            if (ea == null) return 1;   // a sinks
+            if (eb == null) return -1;  // b sinks
             if (ea !== eb) return (ea - eb) * mult;
             return byEmail(a, b);
         });
@@ -1897,40 +1937,40 @@ const JS = /* javascript */ `
 
     // ---------- formatting ------------------------------------------------
     function fmtExpiry(a) {
-        // Free：parseExpiry 已返回 null（见上面注释）。这里直接给确定文案，
-        // 避免和「到期未知」混淆 —— 「免费版」是一个稳定状态，不是数据缺失。
-        if (isFree(a)) return { exact: '免费版', desc: '免费版', tone: 'muted' };
+        // Free: parseExpiry returns null (see above). Use definite text here,
+        // avoid confusion with "unknown expiry" — "Free" is a stable state, not missing data.
+        if (isFree(a)) return { exact: 'Free', desc: 'Free', tone: 'muted' };
         const t = parseExpiry(a);
-        if (!t) return { exact: '到期未知', desc: '到期未知', tone: 'muted' };
+        if (!t) return { exact: 'Unknown expiry', desc: 'Unknown expiry', tone: 'muted' };
         const delta = t - Date.now();
         const exact = new Date(t).toLocaleString();
         if (delta <= 0) {
             const daysAgo = Math.floor(-delta / (24 * 3600e3));
-            return { exact, desc: '已到期 ' + daysAgo + ' 天', tone: 'danger' };
+            return { exact, desc: 'Expired ' + daysAgo + ' days ago', tone: 'danger' };
         }
         const days = Math.floor(delta / (24 * 3600e3));
         const hours = Math.floor((delta % (24 * 3600e3)) / 3600e3);
         if (days > 7) {
-            return { exact, desc: days + ' 天后到期', tone: 'ok' };
+            return { exact, desc: 'Expires in ' + days + ' days', tone: 'ok' };
         }
         if (days > 0) {
-            return { exact, desc: days + ' 天 ' + hours + ' 小时后到期', tone: 'warn' };
+            return { exact, desc: 'Expires in ' + days + 'd ' + hours + 'h', tone: 'warn' };
         }
-        return { exact, desc: hours + ' 小时后到期', tone: 'danger' };
+        return { exact, desc: 'Expires in ' + hours + 'h', tone: 'danger' };
     }
     function fmtPct(pct) {
         if (pct == null) return '-';
         return Math.max(0, Math.min(100, pct | 0)) + '%';
     }
     function barClass(pct) {
-        // remaining quota → colour band. Smooth transition: 绿 → 黄 → 红
+        // remaining quota → colour band. Smooth transition: green → yellow → red
         if (pct == null) return 'crit';
-        if (pct <= 20) return 'crit';   // 红：余量告急
-        if (pct <= 60) return 'low';    // 黄：警告
-        return '';                       // 绿（默认 .bar gradient）
+        if (pct <= 20) return 'crit';   // red: urgent low
+        if (pct <= 60) return 'low';    // yellow: warning
+        return '';                       // green (default .bar gradient)
     }
     /** Human readable "distance to next reset + exact timestamp".
-     *  e.g. "1h 27m · 05/02 15:07", "2d 3h · 05/05 16:12", "已刷新 · 05/02 11:30". */
+     *  e.g. "1h 27m · 05/02 15:07", "2d 3h · 05/05 16:12", "Refreshed · 05/02 11:30". */
     function fmtReset(unixSec) {
         if (!unixSec) return '';
         const t = unixSec * 1000;
@@ -1939,7 +1979,7 @@ const JS = /* javascript */ `
         const exact = pad(d.getMonth() + 1) + '/' + pad(d.getDate())
             + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
         const delta = t - Date.now();
-        if (delta <= 0) return '已刷新 · ' + exact;
+        if (delta <= 0) return 'Refreshed · ' + exact;
         const totalMin = Math.floor(delta / 60000);
         const days = Math.floor(totalMin / 1440);
         const hours = Math.floor((totalMin % 1440) / 60);
@@ -1964,7 +2004,7 @@ const JS = /* javascript */ `
 
     // ---------- render ----------------------------------------------------
     function applyCollapseUi() {
-        // 排序方式 / 筛选账号 两个 section 的折叠状态
+        // Sort / Filter sections collapse state
         const sortHead = document.querySelector('.section-head[data-collapse="sort"]');
         const filterHead = document.querySelector('.section-head[data-collapse="filter"]');
         const sortBody = document.querySelector('.section-body[data-body="sort"]');
@@ -1978,7 +2018,7 @@ const JS = /* javascript */ `
     function render() {
         // Sort dropdown: trigger label + option active state
         const sortLabel = (mode, dir) => {
-            const base = mode === 'expiry' ? '按到期时间' : '按可用额度';
+            const base = mode === 'expiry' ? 'By Expiry' : 'By Quota';
             return base + ' ' + (dir === 'asc' ? '↑' : '↓');
         };
         const sortLabelEl = document.getElementById('sort-label');
@@ -1987,7 +2027,7 @@ const JS = /* javascript */ `
             const mode = opt.dataset.sort;
             const isActive = mode === state.sort.mode;
             opt.classList.toggle('active', isActive);
-            const base = mode === 'expiry' ? '按到期时间' : '按可用额度';
+            const base = mode === 'expiry' ? 'By Expiry' : 'By Quota';
             opt.textContent = isActive ? base + ' ' + (state.sort.dir === 'asc' ? '↑' : '↓') : base;
         });
         // Filter dropdown: checkboxes reflect state, trigger shows count badge.
@@ -2001,25 +2041,25 @@ const JS = /* javascript */ `
         const filterTriggerEl = document.querySelector('[data-dd-trigger="filter"]');
         if (filterLabelEl) {
             filterLabelEl.innerHTML = filterCount > 0
-                ? '筛选<span class="dropdown-badge">' + filterCount + '</span>'
-                : '筛选';
+                ? 'Filter<span class="dropdown-badge">' + filterCount + '</span>'
+                : 'Filter';
         }
         if (filterTriggerEl) filterTriggerEl.classList.toggle('active', filterCount > 0);
 
         applyCollapseUi();
 
-        // Render the "current account" card and the standalone 自动切号 toggles.
+        // Render the "current account" card and the standalone auto switch toggles.
         renderCurrent();
         renderAutoOptions();
 
         // count + list
         if (state.loading) {
-            countEl.innerHTML = '<span class="loading-dot">加载中</span>';
+            countEl.innerHTML = '<span class="loading-dot">Loading</span>';
             listEl.innerHTML = '';
             return;
         }
         if (state.error) {
-            countEl.textContent = '加载失败';
+            countEl.textContent = 'Load failed';
             listEl.innerHTML = '<div class="empty" style="color:var(--danger)">' + escapeHtml(state.error) + '</div>';
             return;
         }
@@ -2029,17 +2069,17 @@ const JS = /* javascript */ `
         const total = state.accounts.length;
         const anyFilter = Object.values(state.filters).some(Boolean);
         countEl.textContent = anyFilter
-            ? sorted.length + '/' + total + ' 个账号'
-            : total + ' 个账号';
+            ? sorted.length + '/' + total + ' accounts'
+            : total + ' accounts';
 
         // Preserve scroll position across reloads. Target a specific card if
         // we just refreshed it (so user can see the updated values).
         const prevScroll = listEl.scrollTop;
 
         if (total === 0) {
-            listEl.innerHTML = '<div class="empty">还没有账号。<br><span class="cta" data-cmd="addAccount">添加账号</span></div>';
+            listEl.innerHTML = '<div class="empty">No accounts yet.<br><span class="cta" data-cmd="addAccount">Add Account</span></div>';
         } else if (sorted.length === 0) {
-            listEl.innerHTML = '<div class="empty">当前筛选条件下没有账号。</div>';
+            listEl.innerHTML = '<div class="empty">No accounts match current filter.</div>';
         } else {
             listEl.innerHTML = sorted.map(a => renderCard(a, 'list')).join('');
         }
@@ -2074,16 +2114,16 @@ const JS = /* javascript */ `
         const dailyBar = Math.max(0, Math.min(100, a.dailyRemainPct || 0));
         const weeklyBar = Math.max(0, Math.min(100, a.weeklyRemainPct || 0));
         const remark = (a.remark || '').trim();
-        const lastQ = a.lastQueryTime ? '· 更新于 ' + new Date(a.lastQueryTime).toLocaleString() : '';
+        const lastQ = a.lastQueryTime ? '· Updated ' + new Date(a.lastQueryTime).toLocaleString() : '';
         // Tell the user WHY the switch button is disabled, not just that it is.
         // Legacy accounts (pre-v0.4) have an empty authProvider which we treat
         // as firebase.
         const provider = (a.authProvider || 'firebase').toLowerCase();
         let switchDisableReason = '';
         if (!a.hasCredentials) {
-            switchDisableReason = '账号缺少任何凭据（密码 / idToken / refreshToken 都为空）。请先删除再用 \`添加账号\` 重新导入。';
+            switchDisableReason = 'Account missing all credentials (password / idToken / refreshToken all empty). Please delete and re-import with \`Add Account\`.';
         } else if (provider !== 'firebase' && provider !== 'auth1') {
-            switchDisableReason = '未识别的登录方式 "' + provider + '"。扩展当前仅支持 firebase 与 auth1。';
+            switchDisableReason = 'Unrecognized auth provider "' + provider + '". Extension currently only supports firebase and auth1.';
         }
         const switchable = !switchDisableReason;
         return \`
@@ -2091,23 +2131,23 @@ const JS = /* javascript */ `
   <div class="card-head">
     <div class="card-title">
       <div class="email" title="\${escapeAttr(a.email)}">\${escapeHtml(a.email)}</div>
-      \${remark ? '<div class="remark" data-cmd="editRemark" title="点击编辑备注">📝 ' + escapeHtml(remark) + '</div>' : ''}
+      \${remark ? '<div class="remark" data-cmd="editRemark" title="Click to edit remark">📝 ' + escapeHtml(remark) + '</div>' : ''}
     </div>
     <div class="plan-badge \${planClass(a.planName)}">\${escapeHtml(a.planName || '-')}</div>
   </div>
   <div class="quota">
     <div class="quota-row">
-      <div class="quota-label">日额度</div>
+      <div class="quota-label">Daily</div>
       <div class="progress"><div class="bar \${barClass(a.dailyRemainPct)}" style="width:\${dailyBar}%"></div></div>
       <div class="quota-value">\${daily}</div>
     </div>
-    \${a.dailyResetUnix ? '<div class="quota-reset">重置 ' + escapeHtml(fmtReset(a.dailyResetUnix)) + '</div>' : ''}
+    \${a.dailyResetUnix ? '<div class="quota-reset">Reset ' + escapeHtml(fmtReset(a.dailyResetUnix)) + '</div>' : ''}
     <div class="quota-row">
-      <div class="quota-label">周额度</div>
+      <div class="quota-label">Weekly</div>
       <div class="progress"><div class="bar \${barClass(a.weeklyRemainPct)}" style="width:\${weeklyBar}%"></div></div>
       <div class="quota-value">\${weekly}</div>
     </div>
-    \${a.weeklyResetUnix ? '<div class="quota-reset">重置 ' + escapeHtml(fmtReset(a.weeklyResetUnix)) + '</div>' : ''}
+    \${a.weeklyResetUnix ? '<div class="quota-reset">Reset ' + escapeHtml(fmtReset(a.weeklyResetUnix)) + '</div>' : ''}
   </div>
   <div class="card-foot">
     <div class="expiry-row">
@@ -2115,15 +2155,15 @@ const JS = /* javascript */ `
     </div>
     <div class="card-actions">
       \${mode === 'current'
-        ? '<button class="btn act" data-cmd="smartSwitch" data-current data-tip="智能切号">' + ICONS.smartSwitch + '</button>'
-          + '<button class="btn act" data-cmd="refreshCurrent" data-current data-tip="刷新 Plan / 额度">' + ICONS.refresh + '</button>'
-          + '<button class="btn act" data-cmd="resetCooldown" data-current data-tip="重置切号冷却">' + ICONS.resetCooldown + '</button>'
-        : '<button class="btn act" data-cmd="switch"' + (switchable ? ' data-tip="切换到该账号"' : ' disabled data-tip="' + escapeAttr(switchDisableReason) + '"') + '>' + ICONS.switch + '</button>'
-          + '<button class="btn act" data-cmd="refresh" data-tip="刷新 Plan / 额度">' + ICONS.refresh + '</button>'
-          + (a.hasCredentials ? '' : '<button class="btn act" data-cmd="fixCredentials" data-tip="补充密码并重登">' + ICONS.fixCredentials + '</button>')
-          + '<button class="btn act" data-cmd="credentials" data-tip="复制 账号+密码">' + ICONS.credentials + '</button>'
-          + '<button class="btn act" data-cmd="editRemark" data-tip="编辑备注">' + ICONS.editRemark + '</button>'
-          + '<button class="btn-danger act" data-cmd="delete" data-tip="删除账号">' + ICONS.delete + '</button>'}
+        ? '<button class="btn act" data-cmd="smartSwitch" data-current data-tip="Smart Switch">' + ICONS.smartSwitch + '</button>'
+          + '<button class="btn act" data-cmd="refreshCurrent" data-current data-tip="Refresh Plan / Quota">' + ICONS.refresh + '</button>'
+          + '<button class="btn act" data-cmd="resetCooldown" data-current data-tip="Reset Switch Cooldown">' + ICONS.resetCooldown + '</button>'
+        : '<button class="btn act" data-cmd="switch"' + (switchable ? ' data-tip="Switch to this account"' : ' disabled data-tip="' + escapeAttr(switchDisableReason) + '"') + '>' + ICONS.switch + '</button>'
+          + '<button class="btn act" data-cmd="refresh" data-tip="Refresh Plan / Quota">' + ICONS.refresh + '</button>'
+          + (a.hasCredentials ? '' : '<button class="btn act" data-cmd="fixCredentials" data-tip="Add password and re-login">' + ICONS.fixCredentials + '</button>')
+          + '<button class="btn act" data-cmd="credentials" data-tip="Copy Account+Password">' + ICONS.credentials + '</button>'
+          + '<button class="btn act" data-cmd="editRemark" data-tip="Edit Remark">' + ICONS.editRemark + '</button>'
+          + '<button class="btn-danger act" data-cmd="delete" data-tip="Delete Account">' + ICONS.delete + '</button>'}
     </div>
   </div>
 </div>
@@ -2141,31 +2181,31 @@ const JS = /* javascript */ `
         const l = state.auto.logWatch || {};
         const intervalMs = p.intervalMs | 0;
         const intervals = [
-            { label: '30 秒', ms: 30000 },
-            { label: '1 分钟', ms: 60000 },
-            { label: '2 分钟', ms: 120000 },
-            { label: '5 分钟', ms: 300000 },
-            { label: '10 分钟', ms: 600000 }
+            { label: '30 sec', ms: 30000 },
+            { label: '1 min', ms: 60000 },
+            { label: '2 min', ms: 120000 },
+            { label: '5 min', ms: 300000 },
+            { label: '10 min', ms: 600000 }
         ];
         const options = intervals.map(i =>
             '<option value="' + i.ms + '"' + (i.ms === intervalMs ? ' selected' : '') + '>' + i.label + '</option>'
         ).join('');
-        // 额度阈值：直接输入数字，配一个 % 后缀。输入在 blur 时生效。
-        //   不断设实候选在 0-99 之间（>=100 无意义，软顾下 max="99"）
+        // Quota threshold: direct number input with % suffix. Applied on blur.
+        //   Keeps value between 0-99 (>=100 is meaningless, soft cap at max="99")
         const threshold = state.auto.lowQuotaThreshold | 0;
         const thresholdEnabled = !!state.auto.lowQuotaThresholdEnabled;
         optionsEl.innerHTML = \`
 <div class="auto-row">
   <label>
     <input type="checkbox" data-auto-toggle="polling" \${p.enabled ? 'checked' : ''} />
-    <span>账号刷新</span>
+    <span>Account Refresh</span>
   </label>
   <select data-auto-interval \${p.enabled ? '' : 'disabled'}>\${options}</select>
 </div>
 <div class="auto-row">
   <label>
     <input type="checkbox" data-auto-toggle="threshold" \${thresholdEnabled ? 'checked' : ''} />
-    <span>触发阈值</span>
+    <span>Trigger Threshold</span>
   </label>
   <div class="threshold-input">
     <input type="text" data-auto-threshold inputmode="numeric" pattern="[0-9]*" maxlength="2" value="\${threshold}" \${thresholdEnabled ? '' : 'disabled'} />
@@ -2175,12 +2215,12 @@ const JS = /* javascript */ `
 <div class="auto-row">
   <label>
     <input type="checkbox" data-auto-toggle="logWatch" \${l.enabled ? 'checked' : ''} />
-    <span>监听日志即时切号</span>
+    <span>Monitor logs for instant switch</span>
   </label>
 </div>\`;
-        // 同步更新 toolbar 「自动」按钮的状态：
-        //   有任一开关开启 → 显示小圆点 + 图标变 accent 色
-        //   都没开         → 圆点隐藏、按钮保持中性
+        // Sync toolbar "Auto" button state:
+        //   Any toggle on → show dot + icon accent color
+        //   All off      → dot hidden, button neutral
         const hasActive = !!(p.enabled || l.enabled);
         const dot = document.querySelector('#auto-dot');
         const trigger = document.querySelector('[data-dd-trigger="auto"]');
@@ -2202,19 +2242,19 @@ const JS = /* javascript */ `
             const headLine = email
                 ? (looksLikeEmail
                     ? '<div class="email" title="' + escapeAttr(email) + '">' + escapeHtml(email) + '</div>' +
-                      '<div class="sub">⚠ 未在账号列表中 · 点击「刷新」尝试识别，或先把此账号导入</div>'
+                      '<div class="sub">⚠ Not in account list · Click "Refresh" to identify, or import this account first</div>'
                     : '<div class="email" title="' + escapeAttr(email) + '">' + escapeHtml(email) + '</div>' +
-                      '<div class="sub">⚠ 已检测到 Windsurf 当前登录显示名，但邮箱仍在同步中 · 点击「刷新」重试</div>')
-                : '<div class="email">（尚未检测到当前账号）</div>' +
-                  '<div class="sub">点击「刷新」从 Windsurf 读取当前登录状态</div>';
+                      '<div class="sub">⚠ Detected Windsurf current login display name, but email still syncing · Click "Refresh" to retry</div>')
+                : '<div class="email">(No current account detected)</div>' +
+                  '<div class="sub">Click "Refresh" to read current login status from Windsurf</div>';
             currentEl.innerHTML =
                 '<div class="card placeholder">' +
                 '  <div class="card-head"><div class="card-title">' + headLine + '</div></div>' +
                 '  <div class="card-foot">' +
                 '    <div class="card-actions">' +
-                '      <button class="btn act" data-cmd="smartSwitch" data-current title="智能切号">' + ICONS.smartSwitch + '</button>' +
-                '      <button class="btn act" data-cmd="refreshCurrent" data-current title="刷新">' + ICONS.refresh + '</button>' +
-                '      <button class="btn act" data-cmd="resetCooldown" data-current title="重置智能切号冷却">' + ICONS.resetCooldown + '</button>' +
+                '      <button class="btn act" data-cmd="smartSwitch" data-current title="Smart Switch">' + ICONS.smartSwitch + '</button>' +
+                '      <button class="btn act" data-cmd="refreshCurrent" data-current title="Refresh">' + ICONS.refresh + '</button>' +
+                '      <button class="btn act" data-cmd="resetCooldown" data-current title="Reset Smart Switch Cooldown">' + ICONS.resetCooldown + '</button>' +
                 '    </div>' +
                 '  </div>' +
                 '</div>';
@@ -2259,7 +2299,7 @@ const JS = /* javascript */ `
         addSubmitEl.disabled = busy;
         addEmailEl.disabled = busy;
         addPwdEl.disabled = busy;
-        addSubmitEl.textContent = busy ? '添加中…' : '添加';
+        addSubmitEl.textContent = busy ? 'Adding…' : 'Add';
     }
 
     function openModal(kind, opts) {
@@ -2277,15 +2317,15 @@ const JS = /* javascript */ `
             setTimeout(() => addEmailEl.focus(), 0);
         } else if (kind === 'batch') {
             batchTextEl.value = '';
-            batchPreviewEl.textContent = '已识别 0 个账号';
+            batchPreviewEl.textContent = '0 accounts identified';
             batchPreviewEl.classList.remove('has');
             batchSubmitEl.disabled = true;
-            batchSubmitEl.textContent = '开始导入';
+            batchSubmitEl.textContent = 'Start Import';
             setTimeout(() => batchTextEl.focus(), 0);
         } else if (kind === 'creds') {
             credsTarget = opts && opts.id ? { id: opts.id, email: opts.email || '' } : null;
             credsEmailEl.textContent = (opts && opts.email) || '';
-            credsHintEl.textContent = '点击按钮后内容将复制到剪贴板。';
+            credsHintEl.textContent = 'Content will be copied to clipboard after clicking button.';
             credsHintEl.classList.remove('error');
         }
     }
@@ -2312,13 +2352,13 @@ const JS = /* javascript */ `
         const email = (addEmailEl.value || '').trim();
         const password = addPwdEl.value || '';
         if (!email || email.indexOf('@') < 0) {
-            addErrorEl.textContent = '请输入合法邮箱';
+            addErrorEl.textContent = 'Please enter a valid email';
             addErrorEl.hidden = false;
             addEmailEl.focus();
             return;
         }
         if (!password) {
-            addErrorEl.textContent = '密码不能为空';
+            addErrorEl.textContent = 'Password cannot be empty';
             addErrorEl.hidden = false;
             addPwdEl.focus();
             return;
@@ -2359,6 +2399,10 @@ const JS = /* javascript */ `
     });
 
     addSubmitEl.addEventListener('click', submitAdd);
+    document.getElementById('modal-add-github').addEventListener('click', () => {
+        if (addSubmitting) return;
+        post('addAccountGitHub', {});
+    });
     batchSubmitEl.addEventListener('click', submitBatch);
     batchTextEl.addEventListener('input', requestPreview);
     batchTextEl.addEventListener('paste', () => setTimeout(requestPreview, 0));
@@ -2385,7 +2429,7 @@ const JS = /* javascript */ `
         }
     }
 
-    // Section head collapse — 排序方式 / 筛选账号
+    // Section head collapse — Sort / Filter
     document.querySelectorAll('.section-head[data-collapse]').forEach(head => {
         head.addEventListener('click', () => {
             const section = head.dataset.collapse;
@@ -2402,18 +2446,18 @@ const JS = /* javascript */ `
         });
     });
 
-    // 阈值输入框三道防线：
-    //   1) HTML maxlength="2" —— 最多 2 个字符能进入，天然上限 99
-    //   2) keydown —— 非数字键直接拦截（Backspace/Arrow 等导航键放行）
-    //   3) input —— 兑底粘贴等渠道，删除非数字字符
+    // Threshold input triple defense:
+    //   1) HTML maxlength="2" — max 2 chars, natural cap at 99
+    //   2) keydown — block non-numeric keys (allow Backspace/Arrow navigation)
+    //   3) input — clean non-digits from paste/IME
     document.addEventListener('keydown', ev => {
         const thr = ev.target.closest('[data-auto-threshold]');
         if (!thr) return;
-        // 功能/导航键（Backspace / Delete / Arrow / Tab / Enter …）一律放行
+        // Function/navigation keys (Backspace / Delete / Arrow / Tab / Enter …) always allowed
         if (ev.key.length > 1) return;
-        // 修饰键组合（Cmd/Ctrl/Alt + X）不拦，比如全选 / 复制 / 粘贴
+        // Modifier combinations (Cmd/Ctrl/Alt + X) not blocked, e.g. select-all / copy / paste
         if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-        // 只放行 0-9
+        // Only allow 0-9
         if (!/^[0-9]$/.test(ev.key)) {
             ev.preventDefault();
         }
@@ -2421,13 +2465,13 @@ const JS = /* javascript */ `
     document.addEventListener('input', ev => {
         const thr = ev.target.closest('[data-auto-threshold]');
         if (!thr) return;
-        // 兼底：清理所有非数字字符（IME / 特殊粘贴）。
-        // maxlength="2" 已确保值不超 99，无需 clamp。
+        // Fallback: clean all non-digit chars (IME / special paste).
+        // maxlength="2" already caps at 99, no clamp needed.
         const clean = (thr.value || '').replace(/\\D/g, '');
         if (clean !== thr.value) thr.value = clean;
     });
 
-    // 自动切号 toggles — auto-row lives in #auto-options (top-level, NOT in currentEl)
+    // Auto-switch toggles — auto-row lives in #auto-options (top-level, NOT in currentEl)
     document.addEventListener('change', ev => {
         const chk = ev.target.closest('[data-auto-toggle]');
         if (chk) {
@@ -2452,14 +2496,14 @@ const JS = /* javascript */ `
         }
         const thr = ev.target.closest('[data-auto-threshold]');
         if (thr) {
-            // 对非法输入做防御：空值 / 非数字 / 超出 0-99
+            // Defensive: empty / non-numeric / out of 0-99
             const raw = (thr.value || '').trim();
             const v = Math.round(Number(raw));
             if (raw !== '' && Number.isFinite(v) && v >= 0 && v <= 99) {
                 state.auto.lowQuotaThreshold = v;
                 post('setLowQuotaThreshold', { threshold: v });
             } else {
-                // 回退到当前合法值，避免输入框显示垂死的非法内容
+                // Revert to current valid value, prevent showing illegal content in input
                 thr.value = String(state.auto.lowQuotaThreshold | 0);
             }
             return;
@@ -2599,7 +2643,7 @@ const JS = /* javascript */ `
         }
         if (msg.type === 'batchPreview') {
             const n = (msg.count | 0);
-            batchPreviewEl.textContent = '已识别 ' + n + ' 个账号';
+            batchPreviewEl.textContent = n + ' accounts identified';
             batchPreviewEl.classList.toggle('has', n > 0);
             batchSubmitEl.disabled = n === 0;
             return;
@@ -2611,7 +2655,7 @@ const JS = /* javascript */ `
         if (msg.type === 'modalError') {
             if (currentModal === 'add') {
                 setAddBusy(false);
-                addErrorEl.textContent = msg.text || '操作失败';
+                addErrorEl.textContent = msg.text || 'Operation failed';
                 addErrorEl.hidden = false;
             }
             return;

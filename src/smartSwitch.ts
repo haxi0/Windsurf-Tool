@@ -86,7 +86,7 @@ export function currentStrategy(now = new Date()) {
     const DAY_MS = 24 * 60 * 60 * 1000;
     const msToSat = msUntilNextDayAt16(now, 6);
     const msToSun = msUntilNextDayAt16(now, 0);
-    // 两个窗口都可能同时存在（周六 16:00 - 周日 16:00），此时 msToSun 更小，用 sun24h。
+    // Both windows may exist simultaneously (Sat 16:00 - Sun 16:00), msToSun is smaller then, use sun24h.
     if (msToSun > 0 && msToSun <= DAY_MS)
         return 'sun24h';
     if (msToSat > 0 && msToSat <= DAY_MS)
@@ -167,11 +167,11 @@ function chain(...cmps) {
     };
 }
 /**
- * sun24h 加权分：
- *   周额度每 1% = 2 分，日额度每 1% = 1 分，取两者较低值作为账号分数。
- *   按分数降序；同分按邮箱升序兜底。
- *   例：周 80 / 日 5 → min(160, 5) = 5；周 40 / 日 60 → min(80, 60) = 60。
- *   这样日额度会成为瓶颈账号的有效筛选。
+ * sun24h weighted score:
+ *   Weekly 1% = 2 pts, Daily 1% = 1 pt, take lower of both as account score.
+ *   Sort by score desc; tie-break by email asc.
+ *   Example: W 80 / D 5 → min(160, 5) = 5; W 40 / D 60 → min(80, 60) = 60.
+ *   This makes daily quota an effective filter for bottleneck accounts.
  */
 function sun24hScore(a) {
     const w = a.weeklyRemainPct ?? 0;
@@ -197,30 +197,30 @@ function applyWeeklyTier(pool, strategy) {
 function strategyReason(strategy) {
     switch (strategy) {
         case 'sat24h':
-            return '距周六 16:00 不足 24h，优先消耗周额度较高的账号';
+            return 'Less than 24h until Sat 16:00, prioritize high weekly quota accounts';
         case 'sun24h':
-            return '距周日 16:00 不足 24h（周额即将重置），按加权分排序（周×2 / 日×1 取低者）';
+            return 'Less than 24h until Sun 16:00 (weekly quota resetting soon), sort by weighted score (W×2 / D×1 take lower)';
         default:
-            return '优先消耗周额度较高的账号，避免周末过后的浪费';
+            return 'Prioritize high weekly quota accounts to avoid post-weekend waste';
     }
 }
 function formatExcludeReason(stats) {
     const parts = [];
     if (stats.self)
-        parts.push(`自己×1`);
+        parts.push(`Self×1`);
     if (stats.cooldown)
-        parts.push(`冷却中×${stats.cooldown}`);
+        parts.push(`Cooldown×${stats.cooldown}`);
     if (stats.unsynced)
-        parts.push(`未同步×${stats.unsynced}`);
+        parts.push(`Unsynced×${stats.unsynced}`);
     if (stats.yahoo)
         parts.push(`Yahoo×${stats.yahoo}`);
     if (stats.free)
         parts.push(`Free×${stats.free}`);
     if (stats.noWeekly)
-        parts.push(`周额=0×${stats.noWeekly}`);
+        parts.push(`Weekly=0×${stats.noWeekly}`);
     if (stats.noDaily)
-        parts.push(`日额=0×${stats.noDaily}`);
-    return parts.length ? `已排除 ${parts.join(' · ')}` : '';
+        parts.push(`Daily=0×${stats.noDaily}`);
+    return parts.length ? `Excluded ${parts.join(' · ')}` : '';
 }
 /**
  * Runs the full smart-switch pipeline and returns a decision object.
@@ -243,7 +243,7 @@ export function decide(opts) {
         stats.lowDaily = poolB.length;
     }
     if (mainPool.length === 0) {
-        const reason = formatExcludeReason(stats) || '没有可切换的账号';
+        const reason = formatExcludeReason(stats) || 'No switchable accounts';
         return { picked: null, candidates: [], reason, strategy };
     }
     const tier = applyWeeklyTier(mainPool, strategy);

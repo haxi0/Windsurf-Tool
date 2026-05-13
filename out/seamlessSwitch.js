@@ -79,7 +79,7 @@ async function isPatchedCommandAvailable() {
  * Side effect: Windsurf's `login()` always calls `env.openExternal(loginUrl)`
  * — a browser tab pops up to `windsurf.com/windsurf/signin`. The page is
  * unused; the user can close it (or batch-close them). This is the documented
- * "已知折衷". To avoid the tab entirely, install the Windsurf core patch via
+ * "known compromise". To avoid the tab entirely, install the Windsurf core patch via
  * `windsurfSwitch.patchWindsurf` so the patched-command path below is taken.
  */
 async function browserSwitch(firebaseIdToken) {

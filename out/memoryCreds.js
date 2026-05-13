@@ -179,7 +179,7 @@ async function runDecrypt() {
         rawRecords = await (0, accountsStore_1.loadAccountsEncrypted)();
     }
     catch (e) {
-        setStatus({ state: 'error', message: `读取 accounts.json 失败: ${e?.message || e}` });
+        setStatus({ state: 'error', message: `Failed to read accounts.json: ${e?.message || e}` });
         return;
     }
     // Accounts without an id are considered corrupt; skip them and never
@@ -232,7 +232,7 @@ async function runDecrypt() {
             plains = await (0, dpapi_1.dpapiUnprotectBatch)(fields.map(f => f.cipher));
         }
         catch (e) {
-            setStatus({ state: 'error', message: `DPAPI 批量解密失败: ${e?.message || e}` });
+            setStatus({ state: 'error', message: `DPAPI batch decryption failed: ${e?.message || e}` });
             return;
         }
         for (const r of missing) {

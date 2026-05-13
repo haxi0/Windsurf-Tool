@@ -242,7 +242,7 @@ async function addAccount(newAccount) {
     return runSerializedMutation(async () => {
         const records = await loadAccountsEncrypted();
         if (records.some(r => (r.email || '').toLowerCase() === newAccount.email.toLowerCase())) {
-            throw new Error(`账号 ${newAccount.email} 已存在`);
+            throw new Error(`Account ${newAccount.email} already exists`);
         }
         const persisted = await buildPersisted(newAccount);
         records.push(persisted);
@@ -266,7 +266,7 @@ async function updateRemark(accountId, remark) {
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
         if (!rec) {
-            throw new Error(`账号不存在: ${accountId}`);
+            throw new Error(`Account does not exist: ${accountId}`);
         }
         rec.remark = remark.trim().slice(0, 4);
         await writeAtomic(records);
@@ -278,7 +278,7 @@ async function applySnapshot(accountId, snapshot) {
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
         if (!rec) {
-            throw new Error(`账号不存在: ${accountId}`);
+            throw new Error(`Account does not exist: ${accountId}`);
         }
         rec.planName = snapshot.planName || 'Free';
         rec.dailyRemainPct = snapshot.dailyRemainPct;
@@ -356,7 +356,7 @@ async function applyAuth1Tokens(accountId, sessionToken, auth1Token, expiresAt, 
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
         if (!rec) {
-            throw new Error(`账号不存在: ${accountId}`);
+            throw new Error(`Account does not exist: ${accountId}`);
         }
         const [idProt, authProt] = await (0, dpapi_1.dpapiProtectBatch)([sessionToken || '', auth1Token || '']);
         if (sessionToken) {
@@ -385,7 +385,7 @@ async function applyLoginTokens(accountId, idToken, refreshToken, expiresAt, dis
         const records = await loadAccountsEncrypted();
         const rec = records.find(r => r.id === accountId);
         if (!rec) {
-            throw new Error(`账号不存在: ${accountId}`);
+            throw new Error(`Account does not exist: ${accountId}`);
         }
         const inputs = [idToken || '', refreshToken || '', password ?? '', auth1Token || ''];
         const [idProt, rtProt, pwdProt, authProt] = await (0, dpapi_1.dpapiProtectBatch)(inputs);

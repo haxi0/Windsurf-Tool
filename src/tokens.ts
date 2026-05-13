@@ -121,7 +121,7 @@ export async function ensureFreshIdToken(
             const login = await (0, windsurfApi_1.login)(account.email, account.password);
             return await persistLoginResult(context, account, login, account.password);
         }
-        throw new Error('当前令牌已失效，且账号缺少密码，无法重新登录。请用「修复凭据」补充密码。');
+        throw new Error('Current token expired and account lacks password, cannot re-login. Use "Fix Credentials" to add password.');
     }
     if (!isAuth1 && account.refreshToken) {
         try {
@@ -154,7 +154,7 @@ export async function ensureFreshIdToken(
         const login = await (0, windsurfApi_1.login)(account.email, account.password);
         return await persistLoginResult(context, account, login, account.password);
     }
-    throw new Error('无法获取有效的 IdToken：账号缺少可用凭据（密码 / refreshToken / auth1Token 都不可用）。请用「修复凭据」补充密码。');
+    throw new Error('Cannot obtain valid IdToken: account lacks available credentials (password / refreshToken / auth1Token all unavailable). Use "Fix Credentials" to add password.');
 }
 async function updateCache(
     context: vscode.ExtensionContext,

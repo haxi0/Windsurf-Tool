@@ -167,7 +167,7 @@ export async function auth1PostAuth(auth1Token) {
     if (Array.isArray(step2?.orgs) &&
         step2.orgs.length > 0 &&
         !(typeof step2?.sessionToken === 'string' && step2.sessionToken)) {
-        throw new Error('此账号有多个组织，请先在 windsurf.com 网页端选好组织再来使用。');
+        throw new Error('This account has multiple organizations. Please select an organization on windsurf.com first.');
     }
     const sessionToken = typeof step2?.sessionToken === 'string' ? step2.sessionToken : '';
     if (!sessionToken) {
@@ -205,7 +205,7 @@ export async function login(email, password) {
             return await auth1Login(email, password);
         }
         catch (auth1Err) {
-            throw new Error(`登录失败。Firebase: ${e?.message || e}；Auth1: ${auth1Err?.message || auth1Err}`);
+            throw new Error(`Login failed. Firebase: ${e?.message || e}; Auth1: ${auth1Err?.message || auth1Err}`);
         }
     }
 }

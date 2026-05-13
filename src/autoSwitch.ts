@@ -13,11 +13,11 @@ export const STATE_KEYS = {
     logWatchEnabled: 'wm.auto.logWatch.enabled',
     logWatchPatterns: 'wm.auto.logWatch.patterns',
     lowQuotaThreshold: 'wm.auto.lowQuotaThreshold',
-    // 关闭时：polling 仍然每 N 分钟刷新额度数据，但不自动切号 —— 只查不切。
+    // When off: polling still refreshes quota data every N minutes, but doesn't auto switch — only checks.
     lowQuotaThresholdEnabled: 'wm.auto.lowQuotaThreshold.enabled'
 };
 export const DEFAULT_POLLING_INTERVAL_MS = 2 * 60 * 1000;
-// 余量低于此百分比就触发自动切号（用户可在 sidebar 里调整，5 / 10 / 15 / 20 / 30）
+// Trigger auto switch when remaining quota falls below this percentage (adjustable in sidebar: 5 / 10 / 15 / 20 / 30)
 export const DEFAULT_LOW_QUOTA_THRESHOLD = 10;
 export const AUTO_SWITCH_THROTTLE_MS = 10 * 1000; // 10s throttle: auto triggers skip;
 // manual switch bypasses this window.
@@ -170,7 +170,7 @@ export class AutoSwitch {
             this._pollingFailStreak++;
             (0, log_1.log)(`autoSwitch: poll failed (${this._pollingFailStreak}):`, e?.message || e);
             if (this._pollingFailStreak === 5) {
-                vscode.window.setStatusBarMessage('$(warning) 自动切号轮询：连续 5 次失败，请检查网络或 idToken', 60_000);
+                vscode.window.setStatusBarMessage('$(warning) Auto switch polling: 5 consecutive failures, check network or idToken', 60_000);
             }
         }
     }

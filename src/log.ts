@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
 let channel: vscode.OutputChannel | undefined;
-// 一旦 deactivate 触发 disposeOutput，这个标记永远为 true。
-// 之后任何 log 调用都不会再 createOutputChannel —— 否则会触发
-// "Trying to add a disposable to a DisposableStore that has already been disposed of"。
-// 这种情况发生在扩展卸载（如切号导致 Windsurf 重新加载扩展宿主）时，
-// 还在排队的异步回调（轮询 tick、Promise then、子进程 stdout）继续调用 log。
+// Once deactivate triggers disposeOutput, this flag stays true forever.
+// After that no log call will createOutputChannel — otherwise it triggers
+// "Trying to add a disposable to a DisposableStore that has already been disposed of".
+// This happens when extension unloads (e.g., switching accounts causes Windsurf to reload ext host),
+// while queued async callbacks (poll tick, Promise then, subprocess stdout) continue calling log.
 let disposed = false;
 
 export function getOutputChannel(): vscode.OutputChannel | undefined {
@@ -31,9 +31,9 @@ export function log(...args: unknown[]): void {
     if (ch) {
         ch.appendLine(formatted);
     } else {
-        // OutputChannel 已 dispose（或扩展正在 deactivate） —— 静默 fallback 到 stderr，
-        // 不再 createOutputChannel，避免泄漏 disposable。
-        // 用 console.error 让消息进 Extension Host 控制台便于调试。
+        // OutputChannel already disposed (or extension deactivating) — silently fallback to stderr,
+        // don't createOutputChannel to avoid leaking disposable.
+        // Use console.error to send messages to Extension Host console for debugging.
         // eslint-disable-next-line no-console
         console.error('[windsurfSwitch]', formatted);
     }

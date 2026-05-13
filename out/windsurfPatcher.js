@@ -60,7 +60,7 @@ exports.restorePatch = restorePatch;
  * no auth-provider race — by writing SecretStorage and firing
  * `_sessionChangeEmitter`.
  *
- * Approach borrows heavily from the reverse-engineered "切号器" extension
+ * Approach borrows heavily from the reverse-engineered "Account Switcher" extension
  * (wf-dialog.wf-dialog-mcp). The clone-and-rename trick (rather than a
  * hard-coded snippet with mangled symbols `s`, `e`, `n`, `B`, ...) keeps the
  * patch resilient to bundler variable renames between Windsurf releases.
@@ -339,7 +339,7 @@ function ensureWritable(filePath) {
             return { ok: true };
         }
         catch (e2) {
-            return { ok: false, error: `${filePath} 不可写：${e2?.message || e2}` };
+            return { ok: false, error: `${filePath} not writable: ${e2?.message || e2}` };
         }
     }
 }
@@ -389,7 +389,7 @@ function writeWithRollback(filePath, content, previous, verify) {
 async function applyPatch() {
     const extPath = findWindsurfExtensionPath();
     if (!extPath) {
-        return { success: false, error: '未找到 Windsurf 核心扩展（codeium.windsurf）的 dist/extension.js' };
+        return { success: false, error: 'Windsurf core extension (codeium.windsurf) dist/extension.js not found' };
     }
     if (isPatchApplied(extPath)) {
         return { success: true, alreadyApplied: true };
@@ -403,7 +403,7 @@ async function applyPatch() {
         original = fs.readFileSync(extPath, 'utf8');
     }
     catch (e) {
-        return { success: false, error: `读取失败：${e?.message || e}` };
+        return { success: false, error: `Read failed: ${e?.message || e}` };
     }
     // Backup the original (only if no backup exists yet — never overwrite a
     // good backup with an already-patched file).
@@ -414,13 +414,13 @@ async function applyPatch() {
             (0, log_1.log)(`[patcher] backup written → ${backupPath}`);
         }
         catch (e) {
-            return { success: false, error: `写备份失败：${e?.message || e}` };
+            return { success: false, error: `Backup write failed: ${e?.message || e}` };
         }
     }
     // 1. Locate `async handleAuthToken(` and clone the body.
     const headerIdx = original.indexOf('async handleAuthToken(');
     if (headerIdx < 0) {
-        return { success: false, error: '在 Windsurf extension.js 中未找到 async handleAuthToken(' };
+        return { success: false, error: 'async handleAuthToken( not found in Windsurf extension.js' };
     }
     let clonedMethod;
     try {
@@ -432,7 +432,7 @@ async function applyPatch() {
     const methodOpen = original.indexOf('{', headerIdx);
     const methodClose = findMatchingBrace(original, methodOpen);
     if (methodOpen < 0 || methodClose < 0) {
-        return { success: false, error: '解析 handleAuthToken 函数体失败' };
+        return { success: false, error: 'Failed to parse handleAuthToken function body' };
     }
     // Insert cloned method right after original's closing brace.
     const insertedAfterMethod = original.slice(0, methodClose + 1) +
@@ -453,7 +453,7 @@ async function applyPatch() {
     // 3. Validate.
     const syn = validateJavaScriptSyntax(patched);
     if (!syn.ok) {
-        return { success: false, error: `补丁后语法校验失败：${syn.error}` };
+        return { success: false, error: `Post-patch syntax validation failed: ${syn.error}` };
     }
     // 4. Write atomically + verify.
     const verified = writeWithRollback(extPath, patched, original, content => content.includes(PATCH_METHOD_MARKER)
@@ -472,11 +472,11 @@ async function applyPatch() {
 async function restorePatch() {
     const extPath = findWindsurfExtensionPath();
     if (!extPath) {
-        return { success: false, error: '未找到 Windsurf 核心扩展的 dist/extension.js' };
+        return { success: false, error: 'Windsurf core extension dist/extension.js not found' };
     }
     const backupPath = extPath + '.aliu-backup';
     if (!fs.existsSync(backupPath)) {
-        return { success: false, error: `备份文件不存在：${backupPath}` };
+        return { success: false, error: `Backup file does not exist: ${backupPath}` };
     }
     const writable = ensureWritable(extPath);
     if (!writable.ok) {
@@ -489,11 +489,11 @@ async function restorePatch() {
         current = fs.readFileSync(extPath, 'utf8');
     }
     catch (e) {
-        return { success: false, error: `读取失败：${e?.message || e}` };
+        return { success: false, error: `Read failed: ${e?.message || e}` };
     }
     const syn = validateJavaScriptSyntax(backup);
     if (!syn.ok) {
-        return { success: false, error: `备份文件语法异常：${syn.error}` };
+        return { success: false, error: `Backup file syntax error: ${syn.error}` };
     }
     const verified = writeWithRollback(extPath, backup, current, content => content === backup && validateJavaScriptSyntax(content).ok);
     if (!verified.success) {
