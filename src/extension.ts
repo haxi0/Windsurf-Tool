@@ -16,6 +16,7 @@ import * as https from "https";
 import * as path from "path";
 import * as autoSwitch_1 from "./autoSwitch";
 import * as smartSwitch_1 from "./smartSwitch";
+import * as bundle_1 from "./bundle";
 import type { Account } from "./types";
 // ---------------------------------------------------------------------------
 // globalState keys for smart switch / Free throttle / current account.
@@ -827,6 +828,7 @@ function registerCommands(context, sidebar) {
     sub.push(vscode.commands.registerCommand('windsurfSwitch.fixCredentialsById', (accountId) => fixCredentialsById(sidebar, accountId)));
     sub.push(vscode.commands.registerCommand('windsurfSwitch.listAccounts', () => cmdListAccounts()));
     sub.push(vscode.commands.registerCommand('windsurfSwitch.exportAccounts', () => cmdExportAccounts()));
+    sub.push(vscode.commands.registerCommand('windsurfSwitch.importAccounts', () => cmdImportAccounts(sidebar)));
     sub.push(vscode.commands.registerCommand('windsurfSwitch.clearExpiredAccounts', () => cmdClearExpiredAccounts(context, sidebar)));
     sub.push(vscode.commands.registerCommand('windsurfSwitch.checkUpdate', () => cmdCheckUpdate(context)));
     // --- Smart switch / auto switch ---
@@ -1216,28 +1218,31 @@ async function addOneAccount(email, password) {
     return account;
 }
 // ---------------------------------------------------------------------------
-// Add account via GitHub OAuth (Continue with Devin > Continue with GitHub)
+// Add account via the Windsurf website (browser sign-in flow).
 //
-// Windsurf's signin page (windsurf.com/windsurf/signin) shows a "Continue
-// with GitHub" button. After the user authenticates, Windsurf's own auth
-// provider receives the callback via the windsurf:// URI scheme and emits
-// a session with accessToken = the firebase idToken (or devin session token).
+// Windsurf's signin page (windsurf.com/windsurf/signin) lets the user pick
+// any auth method — GitHub, Google, email/password on the website, etc. The
+// Windsurf auth provider receives the callback via the windsurf:// URI scheme
+// and emits a session whose accessToken is the firebase idToken (or, for
+// auth1/devin-backed accounts, a `devin-session-token$...`).
 //
 // We trigger getSession(forceNewSession) to run that full browser flow, then
 // read the resulting accessToken and import the account just like addOneAccount.
+// The legacy command id `addAccountGitHub` is retained for backward compat.
 // ---------------------------------------------------------------------------
 async function cmdAddAccountGitHub(sidebar) {
     try {
-        // forceNewSession opens the Windsurf signin page in the browser.
-        // The user picks "Continue with GitHub" there. Windsurf handles the
-        // OAuth callback internally and resolves getSession with the new session.
+        // forceNewSession opens the Windsurf signin page in the browser. The
+        // user can choose any sign-in method offered there. Windsurf handles
+        // the OAuth callback internally and resolves getSession with the new
+        // session containing the resulting accessToken.
         const session = await vscode.authentication.getSession(
             constants_1.WINDSURF_AUTH_PROVIDER_ID,
             ['Login'],
             { forceNewSession: true }
         );
         if (!session?.accessToken) {
-            vscode.window.showErrorMessage('GitHub login cancelled or did not return a token.');
+            vscode.window.showErrorMessage('Browser sign-in cancelled or did not return a token.');
             return;
         }
         const idToken = session.accessToken;
@@ -1245,17 +1250,17 @@ async function cmdAddAccountGitHub(sidebar) {
         // Import the account using the token from the new session.
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: 'Windsurf Switch: Importing GitHub account…',
+            title: 'Windsurf Switch: Importing browser-signed account…',
             cancellable: false
         }, async () => {
             await addOneAccountFromToken(idToken, displayName);
         });
-        statusOk(`Added ${displayName || 'GitHub account'}`);
-        (0, log_1.log)(`addAccountGitHub: ${displayName}`);
+        statusOk(`Added ${displayName || 'browser-signed account'}`);
+        (0, log_1.log)(`addAccountBrowser: ${displayName}`);
         await sidebar.reload();
     } catch (e) {
         (0, log_1.log)('cmdAddAccountGitHub failed:', e);
-        vscode.window.showErrorMessage(`GitHub login failed: ${e?.message || e}`);
+        vscode.window.showErrorMessage(`Browser sign-in failed: ${e?.message || e}`);
     }
 }
 /**
@@ -1267,7 +1272,7 @@ async function cmdAddAccountGitHub(sidebar) {
  * as idToken; no auth1PostAuth or registerUser call is needed.
  *
  * authProvider is determined by the token prefix:
- *   devin-session-token$ → auth1   (Auth1 / devin / GitHub OAuth)
+ *   devin-session-token$ → auth1   (Auth1 / devin / browser OAuth)
  *   anything else        → firebase (firebase api key)
  */
 async function addOneAccountFromToken(apiKey, displayNameHint) {
@@ -1278,7 +1283,7 @@ async function addOneAccountFromToken(apiKey, displayNameHint) {
     // but we flag a generous TTL so ensureFreshIdToken doesn't prematurely invalidate.
     const expiresInSeconds = isDevin ? constants_1.AUTH1_EXPIRES_IN_SECONDS : 3600;
     const now = Date.now();
-    const email = displayNameHint || 'github-user';
+    const email = displayNameHint || 'browser-user';
     const account = {
         id: `${now}-${crypto.randomBytes(3).toString('hex')}`,
         email,
@@ -1317,7 +1322,7 @@ async function addOneAccountFromToken(apiKey, displayNameHint) {
             idTokenExpiresAt: account.idTokenExpiresAt
         });
     } catch (e) {
-        (0, log_1.log)(`putCreds after GitHub addAccount failed for ${email}:`, e?.message || e);
+        (0, log_1.log)(`putCreds after browser sign-in addAccount failed for ${email}:`, e?.message || e);
     }
     try {
         const snap = await (0, windsurfApi_1.getPlanStatus)(apiKey);
@@ -1368,7 +1373,16 @@ async function runBatchImport(sidebar, pairs) {
                 increment: 100 / pairs.length
             });
             try {
-                await addOneAccount(p.email, p.password);
+                // Token-only entries (exported from browser sign-in / OAuth
+                // accounts) carry the credential in `idToken` instead of a
+                // password — skip the email/password login round-trip and
+                // import the token directly.
+                if (p.idToken && !p.password) {
+                    await addOneAccountFromToken(p.idToken, p.displayName || p.email);
+                }
+                else {
+                    await addOneAccount(p.email, p.password);
+                }
                 ok++;
             }
             catch (e) {
@@ -1650,8 +1664,21 @@ async function cmdListAccounts() {
     }
 }
 // ---------------------------------------------------------------------------
-// Export accounts to clipboard — `email:password\n` lines, ready to paste
-// back into "Batch Import" on another machine. Single batched DPAPI call.
+// Export accounts as a portable encrypted bundle (`.wssbundle`).
+//
+// Single-file, password-protected snapshot of every account that has a
+// usable credential (password or any session token). The bundle works
+// identically on Windows / macOS / Linux because the encryption is plain
+// Node `crypto` (PBKDF2-SHA256 + AES-256-GCM) — no DPAPI / Keychain
+// platform-specific behaviour leaks into the file.
+//
+// Flow:
+//   1. Batched cross-platform decrypt of every password + token field.
+//   2. Build a flat JSON array of `BundleAccountEntry`.
+//   3. Ask for an optional password (empty = unencrypted envelope).
+//   4. Save dialog → write the envelope JSON to disk.
+//
+// Re-import on any machine via `cmdImportAccounts` (see below).
 // ---------------------------------------------------------------------------
 async function cmdExportAccounts() {
     const records = await (0, accountsStore_1.loadAccountsEncrypted)();
@@ -1659,36 +1686,270 @@ async function cmdExportAccounts() {
         vscode.window.showInformationMessage('No accounts to export.');
         return;
     }
-    let passwords;
+    // Decrypt every secret field for every record in one batch.
+    const FIELDS_PER_RECORD = 4;
+    const ciphers = [];
+    for (const r of records) {
+        ciphers.push(r.passwordProtected || '');
+        ciphers.push(r.idTokenProtected || '');
+        ciphers.push(r.refreshTokenProtected || '');
+        ciphers.push(r.auth1TokenProtected || '');
+    }
+    let plains;
     try {
-        passwords = await (0, dpapi_1.dpapiUnprotectBatch)(records.map(r => r.passwordProtected || ''));
+        plains = await (0, dpapi_1.dpapiUnprotectBatch)(ciphers);
     }
     catch (e) {
         vscode.window.showErrorMessage(`Decryption failed: ${e?.message || e}`);
-        (0, log_1.log)('exportAccounts: dpapi batch failed -', e?.message || e);
+        (0, log_1.log)('exportAccounts: decrypt batch failed -', e?.message || e);
         return;
     }
-    const lines = [];
+    const entries = [];
+    let pwdCount = 0;
+    let tokenCount = 0;
     let skipped = 0;
     for (let i = 0; i < records.length; i++) {
         const r = records[i];
-        const pwd = passwords[i] || '';
-        if (!r.email || !pwd) {
+        const base = i * FIELDS_PER_RECORD;
+        const pwd = plains[base] || '';
+        const idToken = plains[base + 1] || '';
+        const refreshToken = plains[base + 2] || '';
+        const auth1Token = plains[base + 3] || '';
+        if (!r.email) {
             skipped++;
             continue;
         }
-        lines.push(`${r.email}:${pwd}`);
+        const entry: any = { email: r.email };
+        if (pwd) {
+            entry.password = pwd;
+            pwdCount++;
+        }
+        else if (idToken || auth1Token) {
+            entry.idToken = idToken || auth1Token;
+            if (refreshToken) entry.refreshToken = refreshToken;
+            if (auth1Token) entry.auth1Token = auth1Token;
+            tokenCount++;
+        }
+        else {
+            // No credential we could re-import.
+            skipped++;
+            continue;
+        }
+        if (r.authProvider) entry.authProvider = r.authProvider;
+        if (r.displayName) entry.displayName = r.displayName;
+        if (r.remark) entry.remark = r.remark;
+        entries.push(entry);
     }
-    if (lines.length === 0) {
-        vscode.window.showWarningMessage('Accounts have no password fields, cannot export (use "Fix Credentials" to add password).');
+    if (entries.length === 0) {
+        vscode.window.showWarningMessage('No exportable accounts (none have a password or session token). Use "Fix Credentials" to add credentials first.');
         return;
     }
-    await vscode.env.clipboard.writeText(lines.join('\n'));
-    const tail = skipped > 0 ? ` (skipped ${skipped} accounts without password)` : '';
-    // Warning severity — plaintext credentials live on the OS clipboard now,
-    // and on macOS / Windows can sync to other devices via cloud clipboard.
-    vscode.window.showWarningMessage(`Exported ${lines.length} accounts to clipboard${tail}. ⚠️ Contains plaintext password, please copy something else to overwrite after use.`);
-    (0, log_1.log)(`exportAccounts: ${lines.length} ok, ${skipped} skipped`);
+    // Ask for an optional password. Empty input = unencrypted envelope (still
+    // valid `.wssbundle`, just `encryption: "none"`).
+    const password = await vscode.window.showInputBox({
+        title: `Export ${entries.length} accounts \u2014 set a bundle password`,
+        prompt: 'Enter a password to encrypt the bundle (leave empty to skip encryption).',
+        password: true,
+        placeHolder: 'Bundle password (optional)',
+        ignoreFocusOut: true
+    });
+    if (password === undefined) {
+        // User pressed Esc.
+        return;
+    }
+    if (password) {
+        const confirm = await vscode.window.showInputBox({
+            title: 'Confirm bundle password',
+            prompt: 'Re-enter the same password to confirm.',
+            password: true,
+            placeHolder: 'Repeat password',
+            ignoreFocusOut: true
+        });
+        if (confirm === undefined) {
+            return;
+        }
+        if (confirm !== password) {
+            vscode.window.showErrorMessage('Passwords do not match. Export cancelled.');
+            return;
+        }
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const suggestedName = `windsurf-accounts-${stamp}.${bundle_1.BUNDLE_FILE_EXTENSION}`;
+    const defaultDir = vscode.workspace.workspaceFolders?.[0]?.uri
+        || vscode.Uri.file(require('os').homedir());
+    const target = await vscode.window.showSaveDialog({
+        title: 'Save accounts bundle',
+        defaultUri: vscode.Uri.joinPath(defaultDir, suggestedName),
+        filters: {
+            'Windsurf Switch bundle': [bundle_1.BUNDLE_FILE_EXTENSION],
+            'All files': ['*']
+        },
+        saveLabel: password ? 'Save encrypted bundle' : 'Save bundle'
+    });
+    if (!target) {
+        return;
+    }
+    let envelope;
+    try {
+        envelope = bundle_1.packBundle(entries, password || undefined);
+    }
+    catch (e: any) {
+        vscode.window.showErrorMessage(`Failed to pack bundle: ${e?.message || e}`);
+        (0, log_1.log)('exportAccounts: pack failed -', e?.message || e);
+        return;
+    }
+    try {
+        await vscode.workspace.fs.writeFile(
+            target,
+            Buffer.from(bundle_1.serializeBundle(envelope), 'utf8')
+        );
+    }
+    catch (e: any) {
+        vscode.window.showErrorMessage(`Failed to write bundle: ${e?.message || e}`);
+        (0, log_1.log)('exportAccounts: write failed -', e?.message || e);
+        return;
+    }
+    const enc = password ? 'encrypted' : 'unencrypted';
+    const tail = skipped > 0 ? ` (skipped ${skipped} without credentials)` : '';
+    const open = 'Reveal in OS';
+    vscode.window.showInformationMessage(
+        `Exported ${entries.length} accounts (${pwdCount} password \u00b7 ${tokenCount} token) as ${enc} bundle${tail}.`,
+        open
+    ).then(pick => {
+        if (pick === open) {
+            void vscode.commands.executeCommand('revealFileInOS', target);
+        }
+    });
+    (0, log_1.log)(`exportAccounts: ${entries.length} ok (${pwdCount} pwd, ${tokenCount} token), ${skipped} skipped, enc=${enc}, path=${target.fsPath}`);
+}
+// ---------------------------------------------------------------------------
+// Import accounts from a portable `.wssbundle` file. Reverse of
+// `cmdExportAccounts`.
+//
+//   1. Open dialog → pick a `.wssbundle`.
+//   2. Parse the JSON envelope.
+//   3. If encrypted, prompt for the password and decrypt (AES-GCM auth tag
+//      validates the password — wrong password fails fast).
+//   4. Loop over entries with a progress notification, dispatching each to
+//      `addOneAccount` (password) or `addOneAccountFromToken` (idToken).
+// ---------------------------------------------------------------------------
+async function cmdImportAccounts(sidebar) {
+    const defaultDir = vscode.workspace.workspaceFolders?.[0]?.uri
+        || vscode.Uri.file(require('os').homedir());
+    const picked = await vscode.window.showOpenDialog({
+        title: 'Import accounts bundle',
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: false,
+        defaultUri: defaultDir,
+        filters: {
+            'Windsurf Switch bundle': [bundle_1.BUNDLE_FILE_EXTENSION],
+            'All files': ['*']
+        },
+        openLabel: 'Import bundle'
+    });
+    if (!picked || picked.length === 0) {
+        return;
+    }
+    const fileUri = picked[0];
+    let raw: Uint8Array;
+    try {
+        raw = await vscode.workspace.fs.readFile(fileUri);
+    }
+    catch (e: any) {
+        vscode.window.showErrorMessage(`Failed to read bundle: ${e?.message || e}`);
+        return;
+    }
+    let envelope: any;
+    try {
+        envelope = JSON.parse(Buffer.from(raw).toString('utf8'));
+    }
+    catch (e: any) {
+        vscode.window.showErrorMessage(`Bundle is not valid JSON: ${e?.message || e}`);
+        return;
+    }
+    let password: string | undefined;
+    if (bundle_1.isBundleEncrypted(envelope)) {
+        const pwd = await vscode.window.showInputBox({
+            title: `Unlock ${path.basename(fileUri.fsPath)}`,
+            prompt: 'Enter the password that was used to encrypt this bundle.',
+            password: true,
+            placeHolder: 'Bundle password',
+            ignoreFocusOut: true
+        });
+        if (pwd === undefined) {
+            return;
+        }
+        if (!pwd) {
+            vscode.window.showErrorMessage('A password is required to import this bundle.');
+            return;
+        }
+        password = pwd;
+    }
+    let entries;
+    try {
+        entries = bundle_1.unpackBundle(envelope, password);
+    }
+    catch (e: any) {
+        vscode.window.showErrorMessage(`Import failed: ${e?.message || e}`);
+        (0, log_1.log)('importAccounts: unpack failed -', e?.message || e);
+        return;
+    }
+    if (!entries || entries.length === 0) {
+        vscode.window.showInformationMessage('Bundle is empty \u2014 nothing to import.');
+        return;
+    }
+    await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: `Importing 0/${entries.length}`,
+        cancellable: true
+    }, async (progress, token) => {
+        let ok = 0;
+        let skip = 0;
+        let fail = 0;
+        for (let i = 0; i < entries.length; i++) {
+            if (token.isCancellationRequested) {
+                break;
+            }
+            const e = entries[i];
+            progress.report({
+                message: `${i + 1}/${entries.length} \u00b7 ${e.email || '(no email)'}`,
+                increment: 100 / entries.length
+            });
+            if (!e || !e.email) {
+                skip++;
+                continue;
+            }
+            try {
+                if (e.idToken) {
+                    await addOneAccountFromToken(e.idToken, e.displayName || e.email);
+                }
+                else if (e.password) {
+                    await addOneAccount(e.email, e.password);
+                }
+                else {
+                    // Nothing we can act on.
+                    skip++;
+                    continue;
+                }
+                ok++;
+            }
+            catch (err: any) {
+                const msg = String(err?.message || err);
+                if (msg.includes('already exists')) {
+                    skip++;
+                }
+                else {
+                    fail++;
+                    (0, log_1.log)(`importAccounts: failed for ${e.email}: ${msg}`);
+                }
+            }
+        }
+        vscode.window.showInformationMessage(
+            `Import complete \u2014 added ${ok} \u00b7 skipped ${skip} \u00b7 failed ${fail}${fail ? ' (see logs)' : ''}`
+        );
+        await sidebar.reload();
+    });
 }
 // ---------------------------------------------------------------------------
 // Clear accounts — by category (Expired / Free). Users can check both categories to clear.

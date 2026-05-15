@@ -270,6 +270,9 @@ class SidebarProvider {
             case 'batchImport':
                 void vscode.commands.executeCommand('windsurfSwitch.batchImport');
                 return;
+            case 'importAccounts':
+                void vscode.commands.executeCommand('windsurfSwitch.importAccounts');
+                return;
             case 'exportAccounts':
                 void vscode.commands.executeCommand('windsurfSwitch.exportAccounts');
                 return;
@@ -495,10 +498,10 @@ class SidebarProvider {
         <button class="btn-primary act" data-cmd="addAccount" data-tip="Add Account">
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M3 8h10"/></svg>
         </button>
-        <button class="btn act" data-cmd="batchImport" data-tip="Batch Import">
+        <button class="btn act" data-cmd="importAccounts" data-tip="Import Accounts from Bundle (.wssbundle)">
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8.5M4.5 7 8 10.5 11.5 7M2.5 13.5h11"/></svg>
         </button>
-        <button class="btn act" data-cmd="exportAccounts" data-tip="Export All Accounts to Clipboard">
+        <button class="btn act" data-cmd="exportAccounts" data-tip="Export Accounts as Encrypted Bundle (.wssbundle)">
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13.5V5M4.5 8.5 8 5l3.5 3.5M2.5 2.5h11"/></svg>
         </button>
         <button class="btn act" data-cmd="refreshAll" data-tip="Refresh All Plan / Quota">
@@ -577,8 +580,8 @@ class SidebarProvider {
             </div>
             <div class="modal-divider"><span>or</span></div>
             <button class="btn-github" id="modal-add-github" type="button">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-                Continue with GitHub
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13"/><path d="M8 1.5c2 2 3 4.5 3 6.5s-1 4.5-3 6.5c-2-2-3-4.5-3-6.5s1-4.5 3-6.5z"/></svg>
+                Sign in via Browser
             </button>
         </div>
         <div class="modal-card" id="modal-creds" hidden>
@@ -618,7 +621,8 @@ Password: 88Dave88
                     <div class="modal-format-title">③ Structured (CSV / URL params / JSON)</div>
                     <pre class="modal-format-example">email,password
 email=dave@x.com&amp;password=88Dave88
-[{"email":"a@x.com","password":"p"}]</pre>
+[{"email":"a@x.com","password":"p"}]
+[{"email":"browser-user","idToken":"devin-session-token$..."}]</pre>
                 </div>
 
                 <div class="modal-format-hint-tail">After pasting, "Found N accounts" will show below. Verify before clicking Import. Duplicate emails will be skipped.</div>

@@ -65,14 +65,19 @@
       },
       {
         "command": "windsurfSwitch.addAccountGitHub",
-        "title": "Add Account (Continue with GitHub)",
+        "title": "Add Account (Sign in via Browser)",
         "category": "Windsurf Switch"
       },
       {
         "command": "windsurfSwitch.batchImport",
-        "title": "Batch Import",
+        "title": "Batch Import (Paste Text — Legacy)",
+        "category": "Windsurf Switch"
+      },
+      {
+        "command": "windsurfSwitch.importAccounts",
+        "title": "Import Accounts (Encrypted Bundle)",
         "category": "Windsurf Switch",
-        "icon": "$(cloud-upload)"
+        "icon": "$(cloud-download)"
       },
       {
         "command": "windsurfSwitch.deleteAccountById",
@@ -129,9 +134,9 @@
       },
       {
         "command": "windsurfSwitch.exportAccounts",
-        "title": "Export All Accounts to Clipboard",
+        "title": "Export Accounts (Encrypted Bundle)",
         "category": "Windsurf Switch",
-        "icon": "$(clippy)"
+        "icon": "$(cloud-upload)"
       },
       {
         "command": "windsurfSwitch.clearExpiredAccounts",
@@ -299,14 +304,19 @@
           "group": "overflow@4"
         },
         {
-          "command": "windsurfSwitch.clearExpiredAccounts",
+          "command": "windsurfSwitch.importAccounts",
           "when": "view == windsurfSwitch.sidebar",
           "group": "overflow@5"
         },
         {
-          "command": "windsurfSwitch.checkUpdate",
+          "command": "windsurfSwitch.clearExpiredAccounts",
           "when": "view == windsurfSwitch.sidebar",
           "group": "overflow@6"
+        },
+        {
+          "command": "windsurfSwitch.checkUpdate",
+          "when": "view == windsurfSwitch.sidebar",
+          "group": "overflow@7"
         }
       ]
     }

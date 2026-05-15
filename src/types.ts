@@ -140,10 +140,24 @@ export interface LoginResult {
     expiresInSeconds: number;
 }
 
-/** Plain credentials pair — what the user supplies on add / batch-import. */
+/** Plain credentials pair — what the user supplies on add / batch-import.
+ *  For token-only accounts (browser sign-in / GitHub OAuth) the `password`
+ *  field may be empty and `idToken` (a fully-resolved Windsurf api key,
+ *  either `sk-ws-01...` for firebase or `devin-session-token$...` for
+ *  auth1/devin) carries the credential instead. */
 export interface Credentials {
     email: string;
     password: string;
+    /** Optional Windsurf api key / firebase idToken / devin session token. */
+    idToken?: string;
+    /** Optional firebase refresh token (best-effort, may be empty). */
+    refreshToken?: string;
+    /** Optional auth1 token (best-effort, may be empty). */
+    auth1Token?: string;
+    /** Optional auth provider hint ('firebase' | 'auth1'). */
+    authProvider?: AuthProvider;
+    /** Optional display name hint. */
+    displayName?: string;
 }
 
 // ---------------------------------------------------------------------------

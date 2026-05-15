@@ -90,15 +90,36 @@ function parseJson(text) {
         const rec = item;
         const email = pickString(rec, ['email', 'Email', 'username', 'user', 'account']);
         const password = pickString(rec, ['password', 'Password', 'pwd', 'pass']);
-        if (!email || !password)
+        // Token-based entries (exported from browser sign-in / OAuth accounts)
+        // carry the credential in `idToken` / `apiKey` instead of a password.
+        const idToken = pickString(rec, ['idToken', 'idtoken', 'apiKey', 'apikey', 'accessToken', 'token']);
+        const refreshToken = pickString(rec, ['refreshToken', 'refreshtoken']);
+        const auth1Token = pickString(rec, ['auth1Token', 'auth1token']);
+        const authProvider = pickString(rec, ['authProvider', 'authprovider', 'provider']);
+        const displayName = pickString(rec, ['displayName', 'displayname', 'name']);
+        if (!email)
             continue;
-        if (!EMAIL_REGEX_FULL.test(email))
+        if (!password && !idToken)
+            continue;
+        // Email may be a plain handle (e.g. "browser-user") for token entries
+        // that don't have a real address attached; only validate when no token
+        // is present (legacy email/password JSON entries must look like emails).
+        if (!idToken && !EMAIL_REGEX_FULL.test(email))
             continue;
         const key = email.toLowerCase();
         if (seen.has(key))
             continue;
         seen.add(key);
-        out.push({ email, password: cleanPassword(password) });
+        const entry: any = {
+            email,
+            password: password ? cleanPassword(password) : ''
+        };
+        if (idToken) entry.idToken = idToken;
+        if (refreshToken) entry.refreshToken = refreshToken;
+        if (auth1Token) entry.auth1Token = auth1Token;
+        if (authProvider) entry.authProvider = authProvider;
+        if (displayName) entry.displayName = displayName;
+        out.push(entry);
     }
     return out;
 }
