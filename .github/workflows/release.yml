@@ -30,11 +30,14 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
+            RAW="${{ inputs.tag }}"
           else
-            TAG="${GITHUB_REF#refs/tags/}"
+            RAW="${GITHUB_REF#refs/tags/}"
           fi
-          VERSION="${TAG#v}"
+          # Normalize: strip optional leading "v", then re-add it so TAG is always v-prefixed.
+          VERSION="${RAW#v}"
+          TAG="v${VERSION}"
+          echo "Resolved tag=$TAG version=$VERSION (raw=$RAW)"
           echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
@@ -68,19 +71,24 @@ jobs:
         id: changelog
         shell: bash
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 --exclude="${{ steps.tag.outputs.tag }}" 2>/dev/null || echo "")
+          TAG="${{ steps.tag.outputs.tag }}"
+          # Find the most recent tag that is NOT the current one and that actually exists.
+          PREV_TAG=$(git tag --sort=-creatordate --merged "$TAG" 2>/dev/null \
+            | grep -v -x "$TAG" \
+            | head -n1 || true)
           {
             echo "## What's Changed"
             echo ""
-            if [ -n "$PREV_TAG" ]; then
-              git log --pretty=format:"- %s (%h)" "$PREV_TAG..${{ steps.tag.outputs.tag }}"
+            if [ -n "$PREV_TAG" ] && git rev-parse -q --verify "refs/tags/$PREV_TAG" >/dev/null; then
+              git log --pretty=format:"- %s (%h)" "$PREV_TAG..$TAG"
               echo ""
               echo ""
-              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...${{ steps.tag.outputs.tag }}"
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...$TAG"
             else
-              git log --pretty=format:"- %s (%h)"
+              git log --pretty=format:"- %s (%h)" "$TAG"
             fi
           } > RELEASE_NOTES.md
+          echo "----- RELEASE_NOTES.md -----"
           cat RELEASE_NOTES.md
 
       - name: Upload artifact
