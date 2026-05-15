@@ -314,7 +314,8 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "npm run compile && vsce package --no-dependencies"
+    "package": "npm run compile && vsce package --no-dependencies",
+    "release": "npm version patch -m \"chore(release): v%s\" && git push --follow-tags"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -324,12 +325,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/illfen/windsurf-switch.git"
+    "url": "https://github.com/haxi0/Windsurf-Tool.git"
   },
-  "homepage": "https://github.com/illfen/windsurf-switch#readme",
+  "homepage": "https://github.com/haxi0/Windsurf-Tool#readme",
   "bugs": {
-    "url": "https://github.com/illfen/windsurf-switch/issues"
+    "url": "https://github.com/haxi0/Windsurf-Tool/issues"
   },
-  "author": "illfen",
+  "author": "haxi0",
   "license": "MIT"
 }

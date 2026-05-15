@@ -30,7 +30,7 @@
 
 ### Method 1 — Download from Releases (Recommended)
 
-1. Go to [Releases](https://github.com/illfen/windsurf-switch/releases) and download the latest `windsurf-switch-X.X.X.vsix`
+1. Go to [Releases](https://github.com/haxi0/Windsurf-Tool/releases) and download the latest `windsurf-switch-X.X.X.vsix`
 2. In Windsurf: `Cmd/Ctrl + Shift + P` → `Extensions: Install from VSIX...`
 3. `Reload Window` (click when VSCode prompts)
 4. The **Windsurf Switch** icon will appear in the left Activity Bar → Click to open the sidebar
@@ -38,8 +38,8 @@
 ### Method 2 — Build from Source
 
 ```bash
-git clone https://github.com/illfen/windsurf-switch.git
-cd windsurf-switch
+git clone https://github.com/haxi0/Windsurf-Tool.git
+cd Windsurf-Tool
 npm install              # Install typescript / @types/vscode / vsce
 npm run package          # Compile src/ → out/, then package windsurf-switch-X.X.X.vsix
 ```
@@ -242,7 +242,32 @@ Issues / PRs welcome:
 
 ---
 
-## 📋 Known Limitations
+## � Releasing (Maintainers)
+
+Releases are produced automatically by the GitHub Actions workflow `.github/workflows/release.yml` whenever a tag matching `v*` is pushed.
+
+```bash
+# bump patch version, commit, tag and push (triggers the release workflow)
+npm run release
+
+# or bump a specific level / explicit version
+npm version minor -m "chore(release): v%s" && git push --follow-tags
+npm version 1.3.0 -m "chore(release): v%s" && git push --follow-tags
+```
+
+The workflow will:
+
+1. Verify `package.json` version matches the tag.
+2. Run `npm ci` + `npm run compile`.
+3. Build `windsurf-switch-<version>.vsix` with `@vscode/vsce`.
+4. Generate changelog from git history since the previous tag.
+5. Publish a GitHub Release with the VSIX attached.
+
+You can also dispatch it manually from the **Actions → Release** tab.
+
+---
+
+## �📋 Known Limitations
 
 - Windsurf upgrades overwrite core, requiring auto re-patch + `Cmd+Q` restart
 - Extension only recognizes Firebase / Auth1 login paths (covers 99% of scenarios)
